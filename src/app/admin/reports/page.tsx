@@ -50,11 +50,10 @@ export default function AdminPage() {
 
     setSearches(logs || [])
 
-    // Aggregate top features searched
     const featureCounts: Record<string, number> = {}
-    const cityCounts: Record<string, number> = {};
-    (logs || []).forEach((log: any) => {
-      (log.search_filter || []).forEach((f: any) => {
+    const cityCounts: Record<string, number> = {}
+    ;(logs || []).forEach((log: any) => {
+      ;(log.search_filter || []).forEach((f: any) => {
         if (f.filter_key === 'feature') {
           featureCounts[f.filter_value] = (featureCounts[f.filter_value] || 0) + 1
         }
@@ -129,6 +128,15 @@ export default function AdminPage() {
           <p className="text-gray-500">
             Manage reports and view search analytics
           </p>
+          <div className="flex gap-3 mt-4">
+            <Link
+              href="/admin/analytics"
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
+            >
+              <BarChart2 className="w-4 h-4" />
+              View analytics dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -176,8 +184,11 @@ export default function AdminPage() {
           // ── Reports tab ──────────────────────────────────────────
           <div role="tabpanel" aria-label="Accessibility reports">
 
-            {/* Status filter */}
-            <div className="flex gap-2 mb-6 flex-wrap" role="group" aria-label="Filter reports by status">
+            <div
+              className="flex gap-2 mb-6 flex-wrap"
+              role="group"
+              aria-label="Filter reports by status"
+            >
               {['open', 'under_review', 'resolved', 'rejected', 'all'].map(status => (
                 <button
                   key={status}
