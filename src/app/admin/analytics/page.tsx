@@ -4,39 +4,22 @@ import { useEffect, useState } from 'react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  LineChart,
-  Line,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  ScatterChart,
-  Scatter,
-  ZAxis,
-} from 'recharts'
-import { BarChart2, TrendingUp, PieChart as PieIcon, Activity } from 'lucide-react'
+import { BarChart2, TrendingUp, Activity } from 'lucide-react'
 import Link from 'next/link'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, Legend, Cell,
+  ScatterChart, Scatter, ZAxis,
+} from 'recharts'
 
-const INDIGO  = '#4f46e5'
-const PURPLE  = '#7c3aed'
-const TEAL    = '#0d9488'
-const AMBER   = '#d97706'
-const CORAL   = '#e11d48'
-const GREEN   = '#16a34a'
-const SLATE   = '#475569'
+const INDIGO = '#4f46e5'
+const PURPLE = '#7c3aed'
+const TEAL   = '#0d9488'
+const AMBER  = '#d97706'
+const CORAL  = '#e11d48'
+const GREEN  = '#16a34a'
+const SLATE  = '#475569'
 
 const PALETTE = [INDIGO, TEAL, AMBER, CORAL, GREEN, PURPLE, SLATE, '#0284c7', '#9333ea', '#b45309']
 
@@ -44,15 +27,14 @@ export default function AnalyticsDashboard() {
   const { appUser } = useAuth()
   const [loading, setLoading] = useState(true)
 
-  // Chart data states
-  const [featurePopularity,   setFeaturePopularity]   = useState<any[]>([])
-  const [categoryRatings,     setCategoryRatings]     = useState<any[]>([])
-  const [reviewTrend,         setReviewTrend]         = useState<any[]>([])
-  const [disabilityFeatureMap,setDisabilityFeatureMap]= useState<any[]>([])
-  const [cityEventCount,      setCityEventCount]      = useState<any[]>([])
-  const [freeVsPaid,          setFreeVsPaid]          = useState<any[]>([])
-  const [featureReviewScatter,setFeatureReviewScatter]= useState<any[]>([])
-  const [searchTrend,         setSearchTrend]         = useState<any[]>([])
+  const [featurePopularity,    setFeaturePopularity]    = useState<any[]>([])
+  const [categoryRatings,      setCategoryRatings]      = useState<any[]>([])
+  const [reviewTrend,          setReviewTrend]          = useState<any[]>([])
+  const [disabilityFeatureMap, setDisabilityFeatureMap] = useState<any>({})
+  const [cityEventCount,       setCityEventCount]       = useState<any[]>([])
+  const [freeVsPaid,           setFreeVsPaid]           = useState<any[]>([])
+  const [featureReviewScatter, setFeatureReviewScatter] = useState<any[]>([])
+  const [searchTrend,          setSearchTrend]          = useState<any[]>([])
 
   useEffect(() => {
     if (appUser?.role === 'admin') loadAll()
@@ -72,12 +54,10 @@ export default function AnalyticsDashboard() {
     setLoading(false)
   }
 
-  // 1. Most common accessibility features across events
   async function loadFeaturePopularity() {
     const { data } = await supabase
       .from('event_accessibility')
       .select('accessibility_feature (name, category)')
-
     if (!data) return
     const counts: Record<string, number> = {}
     data.forEach((row: any) => {
@@ -87,20 +67,14 @@ export default function AnalyticsDashboard() {
     const sorted = Object.entries(counts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
-      .map(([name, count]) => ({ name: name.replace(' ', '\n'), fullName: name, count }))
+      .map(([name, count]) => ({ name, fullName: name, count }))
     setFeaturePopularity(sorted)
   }
 
-  // 2. Average accessibility rating by event category
   async function loadCategoryRatings() {
     const { data } = await supabase
       .from('review')
-      .select(`
-        accessibility_rating,
-        overall_rating,
-        event (event_category (name))
-      `)
-
+      .select('accessibility_rating, overall_rating, event (event_category (name))')
     if (!data) return
     const grouped: Record<string, { acc: number[]; overall: number[] }> = {}
     data.forEach((r: any) => {
@@ -111,22 +85,20 @@ export default function AnalyticsDashboard() {
       grouped[cat].overall.push(r.overall_rating)
     })
     const result = Object.entries(grouped).map(([category, vals]) => ({
-      category: category.replace(' & ', '\n& '),
+      category,
       fullCategory: category,
       accessibility: parseFloat((vals.acc.reduce((a, b) => a + b, 0) / vals.acc.length).toFixed(2)),
-      overall: parseFloat((vals.overall.reduce((a, b) => a + b, 0) / vals.overall.length).toFixed(2)),
-      reviews: vals.acc.length,
+      overall:       parseFloat((vals.overall.reduce((a, b) => a + b, 0) / vals.overall.length).toFixed(2)),
+      reviews:       vals.acc.length,
     }))
     setCategoryRatings(result)
   }
 
-  // 3. Reviews submitted over time (monthly)
   async function loadReviewTrend() {
     const { data } = await supabase
       .from('review')
       .select('created_at, accessibility_rating, overall_rating')
       .order('created_at', { ascending: true })
-
     if (!data) return
     const monthly: Record<string, { month: string; reviews: number; avgAcc: number[]; avgOverall: number[] }> = {}
     data.forEach((r: any) => {
@@ -139,26 +111,19 @@ export default function AnalyticsDashboard() {
       monthly[key].avgOverall.push(r.overall_rating)
     })
     const result = Object.values(monthly).map(m => ({
-      month:       m.month,
-      reviews:     m.reviews,
-      avgAcc:      parseFloat((m.avgAcc.reduce((a, b) => a + b, 0) / m.avgAcc.length).toFixed(2)),
-      avgOverall:  parseFloat((m.avgOverall.reduce((a, b) => a + b, 0) / m.avgOverall.length).toFixed(2)),
+      month:      m.month,
+      reviews:    m.reviews,
+      avgAcc:     parseFloat((m.avgAcc.reduce((a, b) => a + b, 0) / m.avgAcc.length).toFixed(2)),
+      avgOverall: parseFloat((m.avgOverall.reduce((a, b) => a + b, 0) / m.avgOverall.length).toFixed(2)),
     }))
     setReviewTrend(result)
   }
 
-  // 4. Radar: disability type vs feature relevance scores
   async function loadDisabilityFeatureMap() {
     const { data } = await supabase
       .from('feature_disability_relevance')
-      .select(`
-        relevance_score,
-        accessibility_feature (name, category),
-        disability_type (name, category)
-      `)
-
+      .select('relevance_score, accessibility_feature (name, category), disability_type (name, category)')
     if (!data) return
-    // Group by disability, average relevance per feature category
     const grouped: Record<string, Record<string, number[]>> = {}
     data.forEach((row: any) => {
       const disability = row.disability_type?.name
@@ -168,29 +133,24 @@ export default function AnalyticsDashboard() {
       if (!grouped[disability][category]) grouped[disability][category] = []
       grouped[disability][category].push(row.relevance_score)
     })
-
-    // Get unique categories
     const categories = [...new Set(data.map((r: any) => r.accessibility_feature?.category).filter(Boolean))]
-
     const result = Object.entries(grouped).map(([disability, cats]) => {
       const row: any = { disability: disability.split(' ')[0] }
       categories.forEach(cat => {
-        const scores = cats[cat] || []
-        row[cat] = scores.length
+        const scores = cats[cat as string] || []
+        row[cat as string] = scores.length
           ? parseFloat((scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1))
           : 0
       })
       return row
     })
-    setDisabilityFeatureMap({ categories, data: result } as any)
+    setDisabilityFeatureMap({ categories, data: result })
   }
 
-  // 5. Events per city
   async function loadCityEventCount() {
     const { data } = await supabase
       .from('event')
       .select('venue (address (city))')
-
     if (!data) return
     const counts: Record<string, number> = {}
     data.forEach((e: any) => {
@@ -203,12 +163,10 @@ export default function AnalyticsDashboard() {
     setCityEventCount(result)
   }
 
-  // 6. Free vs paid event breakdown by category
   async function loadFreeVsPaid() {
     const { data } = await supabase
       .from('event')
       .select('is_free, event_category (name)')
-
     if (!data) return
     const grouped: Record<string, { free: number; paid: number }> = {}
     data.forEach((e: any) => {
@@ -219,24 +177,17 @@ export default function AnalyticsDashboard() {
       else grouped[cat].paid++
     })
     const result = Object.entries(grouped).map(([category, vals]) => ({
-      category: category.replace(' & ', '\n& '),
+      category,
       fullCategory: category,
       ...vals,
     }))
     setFreeVsPaid(result)
   }
 
-  // 7. Scatter: number of accessibility features vs avg accessibility rating
   async function loadFeatureReviewScatter() {
     const { data: events } = await supabase
       .from('event')
-      .select(`
-        event_id,
-        title,
-        event_accessibility (feature_id),
-        review (accessibility_rating)
-      `)
-
+      .select('event_id, title, event_accessibility (feature_id), review (accessibility_rating)')
     if (!events) return
     const result = events
       .filter((e: any) => e.review?.length > 0)
@@ -251,13 +202,11 @@ export default function AnalyticsDashboard() {
     setFeatureReviewScatter(result)
   }
 
-  // 8. Search volume trend over time
   async function loadSearchTrend() {
     const { data } = await supabase
       .from('search_log')
       .select('searched_at, results_count')
       .order('searched_at', { ascending: true })
-
     if (!data || data.length === 0) return
     const daily: Record<string, { date: string; searches: number; avgResults: number[] }> = {}
     data.forEach((log: any) => {
@@ -276,7 +225,6 @@ export default function AnalyticsDashboard() {
     setSearchTrend(result)
   }
 
-  // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null
     return (
@@ -317,8 +265,8 @@ export default function AnalyticsDashboard() {
     )
   }
 
-  const radarData  = (disabilityFeatureMap as any)?.data     || []
-  const radarCats  = (disabilityFeatureMap as any)?.categories || []
+  const radarData = disabilityFeatureMap?.data     || []
+  const radarCats = disabilityFeatureMap?.categories || []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -326,7 +274,6 @@ export default function AnalyticsDashboard() {
 
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -334,7 +281,7 @@ export default function AnalyticsDashboard() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics dashboard</h1>
           </div>
-          <p className="text-gray-500 ml-13">
+          <p className="text-gray-500">
             Data-driven insights to support accessibility decision making
           </p>
           <div className="flex gap-3 mt-4">
@@ -359,7 +306,7 @@ export default function AnalyticsDashboard() {
         ) : (
           <div className="space-y-6">
 
-            {/* Row 1 — full width: feature popularity bar chart */}
+            {/* Chart 1 — Feature popularity */}
             <section
               className="bg-white border border-gray-200 rounded-2xl p-6"
               aria-labelledby="chart1-heading"
@@ -377,7 +324,7 @@ export default function AnalyticsDashboard() {
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart
                   data={featurePopularity}
-                  margin={{ top: 5, right: 20, left: 0, bottom: 60 }}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 80 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis
@@ -386,7 +333,7 @@ export default function AnalyticsDashboard() {
                     angle={-35}
                     textAnchor="end"
                     interval={0}
-                    height={80}
+                    height={100}
                   />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
@@ -399,10 +346,10 @@ export default function AnalyticsDashboard() {
               </ResponsiveContainer>
             </section>
 
-            {/* Row 2 — two columns */}
+            {/* Row 2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Grouped bar: avg ratings by event category */}
+              {/* Chart 2 — Ratings by category */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart2-heading"
@@ -420,7 +367,7 @@ export default function AnalyticsDashboard() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart
                     data={categoryRatings}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 60 }}
+                    margin={{ top: 5, right: 10, left: 0, bottom: 80 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis
@@ -429,26 +376,24 @@ export default function AnalyticsDashboard() {
                       angle={-35}
                       textAnchor="end"
                       interval={0}
-                      height={80}
+                      height={100}
                     />
                     <YAxis domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend
-                      wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
-                    />
+                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                     <Bar dataKey="accessibility" name="Accessibility" fill={INDIGO} radius={[4, 4, 0, 0]} />
                     <Bar dataKey="overall"       name="Overall"       fill={TEAL}   radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </section>
 
-              {/* Pie: free vs paid */}
+              {/* Chart 3 — Free vs paid */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart3-heading"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <PieIcon className="w-4 h-4 text-indigo-500" aria-hidden="true" />
+                  <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
                   <h2 id="chart3-heading" className="font-semibold text-gray-900">
                     Free vs paid events by category
                   </h2>
@@ -460,7 +405,7 @@ export default function AnalyticsDashboard() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart
                     data={freeVsPaid}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 60 }}
+                    margin={{ top: 5, right: 10, left: 0, bottom: 80 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis
@@ -469,22 +414,22 @@ export default function AnalyticsDashboard() {
                       angle={-35}
                       textAnchor="end"
                       interval={0}
-                      height={80}
+                      height={100}
                     />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-                    <Bar dataKey="free" name="Free"   fill={GREEN} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="paid" name="Paid"   fill={AMBER} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="free" name="Free" fill={GREEN} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="paid" name="Paid" fill={AMBER} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </section>
             </div>
 
-            {/* Row 3 — two columns */}
+            {/* Row 3 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Line: review trend over time */}
+              {/* Chart 4 — Review trend */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart4-heading"
@@ -510,42 +455,14 @@ export default function AnalyticsDashboard() {
                     <YAxis yAxisId="right" orientation="right" domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="reviews"
-                      name="Reviews"
-                      stroke={INDIGO}
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: INDIGO }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="avgAcc"
-                      name="Avg accessibility"
-                      stroke={TEAL}
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: TEAL }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="avgOverall"
-                      name="Avg overall"
-                      stroke={AMBER}
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ r: 4, fill: AMBER }}
-                      activeDot={{ r: 6 }}
-                    />
+                    <Line yAxisId="left"  type="monotone" dataKey="reviews"    name="Reviews"           stroke={INDIGO} strokeWidth={2} dot={{ r: 4, fill: INDIGO }} activeDot={{ r: 6 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="avgAcc"     name="Avg accessibility" stroke={TEAL}   strokeWidth={2} dot={{ r: 4, fill: TEAL }}   activeDot={{ r: 6 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="avgOverall" name="Avg overall"       stroke={AMBER}  strokeWidth={2} dot={{ r: 4, fill: AMBER }}  activeDot={{ r: 6 }} strokeDasharray="5 5" />
                   </LineChart>
                 </ResponsiveContainer>
               </section>
 
-              {/* Scatter: features vs rating */}
+              {/* Chart 5 — Scatter */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart5-heading"
@@ -581,20 +498,16 @@ export default function AnalyticsDashboard() {
                     />
                     <ZAxis dataKey="reviews" range={[40, 200]} />
                     <Tooltip content={<ScatterTooltip />} />
-                    <Scatter
-                      data={featureReviewScatter}
-                      fill={INDIGO}
-                      fillOpacity={0.7}
-                    />
+                    <Scatter data={featureReviewScatter} fill={INDIGO} fillOpacity={0.7} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </section>
             </div>
 
-            {/* Row 4 — two columns */}
+            {/* Row 4 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Bar: events per city */}
+              {/* Chart 6 — Events by city */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart6-heading"
@@ -617,12 +530,7 @@ export default function AnalyticsDashboard() {
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                    <YAxis
-                      dataKey="city"
-                      type="category"
-                      tick={{ fontSize: 12, fill: '#475569' }}
-                      width={56}
-                    />
+                    <YAxis dataKey="city" type="category" tick={{ fontSize: 12, fill: '#475569' }} width={56} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="count" name="Events" radius={[0, 6, 6, 0]}>
                       {cityEventCount.map((_: any, i: number) => (
@@ -633,7 +541,7 @@ export default function AnalyticsDashboard() {
                 </ResponsiveContainer>
               </section>
 
-              {/* Radar: disability vs feature category relevance */}
+              {/* Chart 7 — Radar */}
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
                 aria-labelledby="chart7-heading"
@@ -653,21 +561,12 @@ export default function AnalyticsDashboard() {
                   <ResponsiveContainer width="100%" height={280}>
                     <RadarChart data={radarCats.map((cat: string) => {
                       const point: any = { category: cat }
-                      radarData.forEach((d: any) => {
-                        point[d.disability] = d[cat] || 0
-                      })
+                      radarData.forEach((d: any) => { point[d.disability] = d[cat] || 0 })
                       return point
                     })}>
                       <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis
-                        dataKey="category"
-                        tick={{ fontSize: 11, fill: '#64748b' }}
-                      />
-                      <PolarRadiusAxis
-                        angle={30}
-                        domain={[0, 10]}
-                        tick={{ fontSize: 10, fill: '#94a3b8' }}
-                      />
+                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                       {radarData.slice(0, 6).map((d: any, i: number) => (
                         <Radar
                           key={d.disability}
@@ -679,9 +578,7 @@ export default function AnalyticsDashboard() {
                           strokeWidth={2}
                         />
                       ))}
-                      <Legend
-                        wrapperStyle={{ fontSize: '11px' }}
-                      />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
                       <Tooltip content={<CustomTooltip />} />
                     </RadarChart>
                   </ResponsiveContainer>
@@ -693,7 +590,7 @@ export default function AnalyticsDashboard() {
               </section>
             </div>
 
-            {/* Row 5 — full width: search trend */}
+            {/* Chart 8 — Search trend */}
             {searchTrend.length > 0 && (
               <section
                 className="bg-white border border-gray-200 rounded-2xl p-6"
@@ -720,39 +617,19 @@ export default function AnalyticsDashboard() {
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#64748b' }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="searches"
-                      name="Searches"
-                      stroke={INDIGO}
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: INDIGO }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="avgResults"
-                      name="Avg results"
-                      stroke={CORAL}
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ r: 4, fill: CORAL }}
-                    />
+                    <Line yAxisId="left"  type="monotone" dataKey="searches"   name="Searches"     stroke={INDIGO} strokeWidth={2} dot={{ r: 4, fill: INDIGO }} />
+                    <Line yAxisId="right" type="monotone" dataKey="avgResults" name="Avg results"   stroke={CORAL}  strokeWidth={2} dot={{ r: 4, fill: CORAL  }} strokeDasharray="5 5" />
                   </LineChart>
                 </ResponsiveContainer>
               </section>
             )}
 
-            {/* Key insights summary */}
+            {/* Key insights */}
             <section
               className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6"
               aria-labelledby="insights-heading"
             >
-              <h2
-                id="insights-heading"
-                className="font-semibold text-indigo-900 mb-4 text-lg"
-              >
+              <h2 id="insights-heading" className="font-semibold text-indigo-900 mb-4 text-lg">
                 Key insights
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -764,7 +641,7 @@ export default function AnalyticsDashboard() {
                   },
                   {
                     title: 'Highest rated category',
-                    value: categoryRatings.sort((a, b) => b.accessibility - a.accessibility)[0]?.fullCategory || '—',
+                    value: [...categoryRatings].sort((a, b) => b.accessibility - a.accessibility)[0]?.fullCategory || '—',
                     desc:  'Event category with the highest average accessibility rating from attendees',
                   },
                   {
