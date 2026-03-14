@@ -6,22 +6,16 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { BarChart2, TrendingUp, Activity } from 'lucide-react'
 import Link from 'next/link'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  LineChart, Line, Legend, Cell,
-  ScatterChart, Scatter, ZAxis,
-} from 'recharts'
+import dynamic from 'next/dynamic'
 
-const INDIGO = '#4f46e5'
-const PURPLE = '#7c3aed'
-const TEAL   = '#0d9488'
-const AMBER  = '#d97706'
-const CORAL  = '#e11d48'
-const GREEN  = '#16a34a'
-const SLATE  = '#475569'
-
-const PALETTE = [INDIGO, TEAL, AMBER, CORAL, GREEN, PURPLE, SLATE, '#0284c7', '#9333ea', '#b45309']
+const FeaturePopularityChart = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.FeaturePopularityChart })), { ssr: false })
+const CategoryRatingsChart   = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.CategoryRatingsChart })),   { ssr: false })
+const FreeVsPaidChart        = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.FreeVsPaidChart })),        { ssr: false })
+const ReviewTrendChart       = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.ReviewTrendChart })),       { ssr: false })
+const ScatterPlotChart       = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.ScatterPlotChart })),       { ssr: false })
+const CityEventChart         = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.CityEventChart })),         { ssr: false })
+const RadarChartComponent    = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.RadarChartComponent })),    { ssr: false })
+const SearchTrendChart       = dynamic(() => import('@/components/analytics/Charts').then(m => ({ default: m.SearchTrendChart })),       { ssr: false })
 
 export default function AnalyticsDashboard() {
   const { appUser } = useAuth()
@@ -133,12 +127,12 @@ export default function AnalyticsDashboard() {
       if (!grouped[disability][category]) grouped[disability][category] = []
       grouped[disability][category].push(row.relevance_score)
     })
-    const categories = [...new Set(data.map((r: any) => r.accessibility_feature?.category).filter(Boolean))]
+    const categories = [...new Set(data.map((r: any) => r.accessibility_feature?.category).filter(Boolean))] as string[]
     const result = Object.entries(grouped).map(([disability, cats]) => {
       const row: any = { disability: disability.split(' ')[0] }
       categories.forEach(cat => {
-        const scores = cats[cat as string] || []
-        row[cat as string] = scores.length
+        const scores = cats[cat] || []
+        row[cat] = scores.length
           ? parseFloat((scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1))
           : 0
       })
@@ -225,34 +219,6 @@ export default function AnalyticsDashboard() {
     setSearchTrend(result)
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm">
-        <p className="font-semibold text-gray-900 mb-1">{label}</p>
-        {payload.map((entry: any) => (
-          <p key={entry.name} style={{ color: entry.color }} className="text-xs">
-            {entry.name}: <span className="font-medium">{entry.value}</span>
-          </p>
-        ))}
-      </div>
-    )
-  }
-
-  const ScatterTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null
-    const d = payload[0]?.payload
-    if (!d) return null
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm max-w-xs">
-        <p className="font-semibold text-gray-900 mb-1 text-xs leading-tight">{d.name}</p>
-        <p className="text-xs text-gray-600">Features: <span className="font-medium">{d.features}</span></p>
-        <p className="text-xs text-gray-600">Avg accessibility: <span className="font-medium">{d.rating}</span></p>
-        <p className="text-xs text-gray-600">Reviews: <span className="font-medium">{d.reviews}</span></p>
-      </div>
-    )
-  }
-
   if (appUser?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -265,8 +231,12 @@ export default function AnalyticsDashboard() {
     )
   }
 
-  const radarData = disabilityFeatureMap?.data     || []
+  const radarData = disabilityFeatureMap?.data      || []
   const radarCats = disabilityFeatureMap?.categories || []
+
+  const ChartPlaceholder = () => (
+    <div className="h-64 bg-gray-50 rounded-xl animate-pulse" />
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -285,10 +255,7 @@ export default function AnalyticsDashboard() {
             Data-driven insights to support accessibility decision making
           </p>
           <div className="flex gap-3 mt-4">
-            <Link
-              href="/admin/reports"
-              className="text-sm text-indigo-600 font-medium hover:underline"
-            >
+            <Link href="/admin/reports" className="text-sm text-indigo-600 font-medium hover:underline">
               ← Back to admin panel
             </Link>
           </div>
@@ -307,328 +274,118 @@ export default function AnalyticsDashboard() {
           <div className="space-y-6">
 
             {/* Chart 1 — Feature popularity */}
-            <section
-              className="bg-white border border-gray-200 rounded-2xl p-6"
-              aria-labelledby="chart1-heading"
-            >
+            <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart1-heading">
               <div className="flex items-center gap-2 mb-1">
                 <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                <h2 id="chart1-heading" className="font-semibold text-gray-900">
-                  Most provided accessibility features
-                </h2>
+                <h2 id="chart1-heading" className="font-semibold text-gray-900">Most provided accessibility features</h2>
               </div>
               <p className="text-gray-500 text-sm mb-6">
                 How frequently each accessibility feature appears across all events —
                 reveals which features organisers prioritise and which are underserved.
               </p>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart
-                  data={featurePopularity}
-                  margin={{ top: 5, right: 20, left: 0, bottom: 80 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="fullName"
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    angle={-35}
-                    textAnchor="end"
-                    interval={0}
-                    height={100}
-                  />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name="Events" radius={[6, 6, 0, 0]}>
-                    {featurePopularity.map((_: any, i: number) => (
-                      <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <FeaturePopularityChart data={featurePopularity} />
             </section>
 
             {/* Row 2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Chart 2 — Ratings by category */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart2-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart2-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <Activity className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart2-heading" className="font-semibold text-gray-900">
-                    Ratings by event category
-                  </h2>
+                  <h2 id="chart2-heading" className="font-semibold text-gray-900">Ratings by event category</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Average overall and accessibility ratings per category —
                   identifies which event types deliver the best accessible experiences.
                 </p>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={categoryRatings}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 80 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="fullCategory"
-                      tick={{ fontSize: 10, fill: '#64748b' }}
-                      angle={-35}
-                      textAnchor="end"
-                      interval={0}
-                      height={100}
-                    />
-                    <YAxis domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-                    <Bar dataKey="accessibility" name="Accessibility" fill={INDIGO} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="overall"       name="Overall"       fill={TEAL}   radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <CategoryRatingsChart data={categoryRatings} />
               </section>
 
-              {/* Chart 3 — Free vs paid */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart3-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart3-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart3-heading" className="font-semibold text-gray-900">
-                    Free vs paid events by category
-                  </h2>
+                  <h2 id="chart3-heading" className="font-semibold text-gray-900">Free vs paid events by category</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Breakdown of free and ticketed events across categories —
                   helps identify where financial barriers to access may exist.
                 </p>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={freeVsPaid}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 80 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="fullCategory"
-                      tick={{ fontSize: 10, fill: '#64748b' }}
-                      angle={-35}
-                      textAnchor="end"
-                      interval={0}
-                      height={100}
-                    />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-                    <Bar dataKey="free" name="Free" fill={GREEN} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="paid" name="Paid" fill={AMBER} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <FreeVsPaidChart data={freeVsPaid} />
               </section>
             </div>
 
             {/* Row 3 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Chart 4 — Review trend */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart4-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart4-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart4-heading" className="font-semibold text-gray-900">
-                    Review and rating trends over time
-                  </h2>
+                  <h2 id="chart4-heading" className="font-semibold text-gray-900">Review and rating trends over time</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Monthly review volume and average ratings — tracks whether
                   accessibility standards are improving over time.
                 </p>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart
-                    data={reviewTrend}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line yAxisId="left"  type="monotone" dataKey="reviews"    name="Reviews"           stroke={INDIGO} strokeWidth={2} dot={{ r: 4, fill: INDIGO }} activeDot={{ r: 6 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="avgAcc"     name="Avg accessibility" stroke={TEAL}   strokeWidth={2} dot={{ r: 4, fill: TEAL }}   activeDot={{ r: 6 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="avgOverall" name="Avg overall"       stroke={AMBER}  strokeWidth={2} dot={{ r: 4, fill: AMBER }}  activeDot={{ r: 6 }} strokeDasharray="5 5" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <ReviewTrendChart data={reviewTrend} />
               </section>
 
-              {/* Chart 5 — Scatter */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart5-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart5-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <Activity className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart5-heading" className="font-semibold text-gray-900">
-                    Accessibility features vs rating
-                  </h2>
+                  <h2 id="chart5-heading" className="font-semibold text-gray-900">Accessibility features vs rating</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Each dot is an event — x axis is number of accessibility features listed,
                   y axis is average accessibility rating. Tests whether more features
                   correlates with higher ratings.
                 </p>
-                <ResponsiveContainer width="100%" height={280}>
-                  <ScatterChart margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="features"
-                      name="Features"
-                      type="number"
-                      tick={{ fontSize: 11, fill: '#64748b' }}
-                      label={{ value: 'No. of features', position: 'insideBottom', offset: -5, fontSize: 11, fill: '#94a3b8' }}
-                      height={40}
-                    />
-                    <YAxis
-                      dataKey="rating"
-                      name="Rating"
-                      domain={[0, 5]}
-                      tick={{ fontSize: 11, fill: '#64748b' }}
-                      label={{ value: 'Avg rating', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#94a3b8' }}
-                    />
-                    <ZAxis dataKey="reviews" range={[40, 200]} />
-                    <Tooltip content={<ScatterTooltip />} />
-                    <Scatter data={featureReviewScatter} fill={INDIGO} fillOpacity={0.7} />
-                  </ScatterChart>
-                </ResponsiveContainer>
+                <ScatterPlotChart data={featureReviewScatter} />
               </section>
             </div>
 
             {/* Row 4 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Chart 6 — Events by city */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart6-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart6-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart6-heading" className="font-semibold text-gray-900">
-                    Accessible events by city
-                  </h2>
+                  <h2 id="chart6-heading" className="font-semibold text-gray-900">Accessible events by city</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Number of events per city — highlights geographic gaps in
                   accessible event provision across the UK.
                 </p>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={cityEventCount}
-                    layout="vertical"
-                    margin={{ top: 5, right: 20, left: 60, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                    <YAxis dataKey="city" type="category" tick={{ fontSize: 12, fill: '#475569' }} width={56} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="count" name="Events" radius={[0, 6, 6, 0]}>
-                      {cityEventCount.map((_: any, i: number) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <CityEventChart data={cityEventCount} />
               </section>
 
-              {/* Chart 7 — Radar */}
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart7-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart7-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <Activity className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart7-heading" className="font-semibold text-gray-900">
-                    Feature relevance by disability type
-                  </h2>
+                  <h2 id="chart7-heading" className="font-semibold text-gray-900">Feature relevance by disability type</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Radar chart showing average feature relevance score across
                   accessibility categories for each disability type — supports
                   targeted event recommendations.
                 </p>
-                {radarData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <RadarChart data={radarCats.map((cat: string) => {
-                      const point: any = { category: cat }
-                      radarData.forEach((d: any) => { point[d.disability] = d[cat] || 0 })
-                      return point
-                    })}>
-                      <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      {radarData.slice(0, 6).map((d: any, i: number) => (
-                        <Radar
-                          key={d.disability}
-                          name={d.disability}
-                          dataKey={d.disability}
-                          stroke={PALETTE[i]}
-                          fill={PALETTE[i]}
-                          fillOpacity={0.1}
-                          strokeWidth={2}
-                        />
-                      ))}
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Tooltip content={<CustomTooltip />} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
-                    No relevance data available
-                  </div>
-                )}
+                <RadarChartComponent radarData={radarData} radarCats={radarCats} />
               </section>
             </div>
 
             {/* Chart 8 — Search trend */}
             {searchTrend.length > 0 && (
-              <section
-                className="bg-white border border-gray-200 rounded-2xl p-6"
-                aria-labelledby="chart8-heading"
-              >
+              <section className="bg-white border border-gray-200 rounded-2xl p-6" aria-labelledby="chart8-heading">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                  <h2 id="chart8-heading" className="font-semibold text-gray-900">
-                    Search activity over time
-                  </h2>
+                  <h2 id="chart8-heading" className="font-semibold text-gray-900">Search activity over time</h2>
                 </div>
                 <p className="text-gray-500 text-sm mb-6">
                   Daily search volume and average results returned —
                   tracks platform usage growth and identifies periods of high demand.
                 </p>
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart
-                    data={searchTrend}
-                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line yAxisId="left"  type="monotone" dataKey="searches"   name="Searches"     stroke={INDIGO} strokeWidth={2} dot={{ r: 4, fill: INDIGO }} />
-                    <Line yAxisId="right" type="monotone" dataKey="avgResults" name="Avg results"   stroke={CORAL}  strokeWidth={2} dot={{ r: 4, fill: CORAL  }} strokeDasharray="5 5" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <SearchTrendChart data={searchTrend} />
               </section>
             )}
 
             {/* Key insights */}
-            <section
-              className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6"
-              aria-labelledby="insights-heading"
-            >
+            <section className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6" aria-labelledby="insights-heading">
               <h2 id="insights-heading" className="font-semibold text-indigo-900 mb-4 text-lg">
                 Key insights
               </h2>
