@@ -400,7 +400,7 @@ export default function ImportEventsPage() {
                               {preview.aiConfidence} confidence
                             </span>
                             {preview.ticketUrl && (
-                              
+                              <a
                                 href={preview.ticketUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
