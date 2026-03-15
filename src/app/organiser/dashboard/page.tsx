@@ -17,6 +17,7 @@ import {
   Star,
   Users,
   Building,
+  Download,
 } from 'lucide-react'
 
 export default function OrganiserDashboard() {
@@ -61,9 +62,9 @@ export default function OrganiserDashboard() {
         : 0
 
       setStats({
-        total: data.length,
+        total:            data.length,
         upcoming,
-        totalReviews: allReviews.length,
+        totalReviews:     allReviews.length,
         avgAccessibility: Math.round(avgAcc * 10) / 10,
       })
     }
@@ -115,18 +116,25 @@ export default function OrganiserDashboard() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Organiser dashboard</h1>
             <p className="text-gray-500 mt-1">Manage your events and accessibility information</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Link
               href="/organiser/venues"
               className="border border-gray-200 bg-white text-gray-700 font-medium px-5 py-2.5 rounded-xl hover:border-indigo-300 hover:text-indigo-600 transition-colors text-sm flex items-center gap-2"
             >
               <Building className="w-4 h-4" />
               Venues
+            </Link>
+            <Link
+              href="/organiser/import"
+              className="border border-gray-200 bg-white text-gray-700 font-medium px-5 py-2.5 rounded-xl hover:border-indigo-300 hover:text-indigo-600 transition-colors text-sm flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Import from Eventbrite
             </Link>
             <Link
               href="/organiser/events/new"
@@ -141,10 +149,10 @@ export default function OrganiserDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Total events',       value: stats.total,           icon: Calendar  },
-            { label: 'Upcoming',           value: stats.upcoming,        icon: BarChart2 },
-            { label: 'Total reviews',      value: stats.totalReviews,    icon: Users     },
-            { label: 'Avg accessibility',  value: stats.avgAccessibility || '—', icon: Star },
+            { label: 'Total events',      value: stats.total,                        icon: Calendar  },
+            { label: 'Upcoming',          value: stats.upcoming,                     icon: BarChart2 },
+            { label: 'Total reviews',     value: stats.totalReviews,                 icon: Users     },
+            { label: 'Avg accessibility', value: stats.avgAccessibility || '—',      icon: Star      },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white border border-gray-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-3">
@@ -169,15 +177,24 @@ export default function OrganiserDashboard() {
               <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No events yet</h3>
               <p className="text-gray-500 text-sm mb-6">
-                Create your first event to get started.
+                Create your first event or import from Eventbrite to get started.
               </p>
-              <Link
-                href="/organiser/events/new"
-                className="bg-indigo-600 text-white font-medium px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors text-sm inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create event
-              </Link>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <Link
+                  href="/organiser/events/new"
+                  className="bg-indigo-600 text-white font-medium px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors text-sm inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create event
+                </Link>
+                <Link
+                  href="/organiser/import"
+                  className="border border-gray-200 text-gray-700 font-medium px-6 py-3 rounded-xl hover:border-indigo-300 hover:text-indigo-600 transition-colors text-sm inline-flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Import from Eventbrite
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -189,7 +206,7 @@ export default function OrganiserDashboard() {
                 return (
                   <div key={event.event_id} className="px-6 py-4 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-medium text-gray-900 truncate">
                           {event.title}
                         </h3>
@@ -197,7 +214,7 @@ export default function OrganiserDashboard() {
                           {event.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           {formatDateShort(event.start_time)} · {formatTime(event.start_time)}
@@ -209,7 +226,7 @@ export default function OrganiserDashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <span className="text-xs text-indigo-600">
                           {event.event_accessibility?.length || 0} accessibility features
                         </span>
@@ -233,6 +250,7 @@ export default function OrganiserDashboard() {
                         href={`/events/${event.event_id}`}
                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="View event"
+                        aria-label={`View ${event.title}`}
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
@@ -240,6 +258,7 @@ export default function OrganiserDashboard() {
                         href={`/organiser/events/${event.event_id}/edit`}
                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="Edit event"
+                        aria-label={`Edit ${event.title}`}
                       >
                         <Edit className="w-4 h-4" />
                       </Link>
@@ -248,6 +267,7 @@ export default function OrganiserDashboard() {
                         disabled={deleting === event.event_id}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete event"
+                        aria-label={`Delete ${event.title}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
