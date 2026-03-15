@@ -134,7 +134,7 @@ export default function OrganiserDashboard() {
               className="border border-gray-200 bg-white text-gray-700 font-medium px-5 py-2.5 rounded-xl hover:border-indigo-300 hover:text-indigo-600 transition-colors text-sm flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Import from Eventbrite
+              Import from Ticketmaster
             </Link>
             <Link
               href="/organiser/events/new"
@@ -192,7 +192,7 @@ export default function OrganiserDashboard() {
                   className="border border-gray-200 text-gray-700 font-medium px-6 py-3 rounded-xl hover:border-indigo-300 hover:text-indigo-600 transition-colors text-sm inline-flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  Import from Eventbrite
+                  Import from Ticketmaster
                 </Link>
               </div>
             </div>
