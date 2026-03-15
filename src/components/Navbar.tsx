@@ -49,6 +49,13 @@ export default function Navbar() {
               Browse Events
             </Link>
 
+            <Link
+            href="/insights"
+            className="text-gray-600 hover:text-indigo-600 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded"
+            >
+            Insights
+            </Link>
+
             {!loading && appUser && (
               <>
                 <Link
@@ -156,6 +163,15 @@ export default function Navbar() {
           >
             Browse Events
           </Link>
+
+          <Link
+          href="/insights"
+          className="text-gray-700 text-sm font-medium"
+          onClick={() => setMenuOpen(false)}
+          role="menuitem"
+          >
+          Insights
+          </Link> 
 
           {appUser && (
             <>

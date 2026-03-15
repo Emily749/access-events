@@ -28,15 +28,15 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/events"
-                className="bg-white text-indigo-600 font-semibold px-8 py-4 rounded-xl hover:bg-indigo-50 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+                className="bg-white text-indigo-600 font-semibold px-8 py-4 rounded-xl hover:bg-indigo-50 transition-colors text-sm"
               >
                 Browse events
               </Link>
               <Link
-                href="/auth/register"
-                className="border-2 border-white text-white font-semibold px-8 py-4 rounded-xl hover:bg-indigo-500 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+                href="/insights"
+                className="border-2 border-white text-white font-semibold px-8 py-4 rounded-xl hover:bg-indigo-500 transition-colors text-sm"
               >
-                Create account
+                View accessibility insights
               </Link>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function HomePage() {
                   <li key={feature}>
                     <Link
                       href={`/events?feature=${encodeURIComponent(feature)}`}
-                      className="bg-indigo-50 text-indigo-700 text-sm font-medium px-4 py-2 rounded-full hover:bg-indigo-100 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 block"
+                      className="bg-indigo-50 text-indigo-700 text-sm font-medium px-4 py-2 rounded-full hover:bg-indigo-100 transition-colors block"
                     >
                       {feature}
                     </Link>
@@ -151,7 +151,51 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CTA */}
+        {/* Insights CTA */}
+        <section
+          className="py-16 px-4 bg-gray-50"
+          aria-labelledby="insights-cta-heading"
+        >
+          <div className="max-w-5xl mx-auto">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-8">
+              <div className="flex-1">
+                <h2
+                  id="insights-cta-heading"
+                  className="text-2xl font-bold text-gray-900 mb-3"
+                >
+                  Understand the accessibility landscape
+                </h2>
+                <p className="text-gray-500 leading-relaxed mb-5">
+                  Our live insights dashboard shows which accessibility features are
+                  most in demand, which disability communities are underserved, and
+                  how events across the UK compare on accessibility. Free to access,
+                  no account needed.
+                </p>
+                <Link
+                  href="/insights"
+                  className="bg-indigo-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors text-sm inline-block"
+                >
+                  Explore accessibility insights
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                {[
+                  { value: '15',   label: 'Accessibility features tracked' },
+                  { value: '8',    label: 'Disability types covered'        },
+                  { value: '12',   label: 'Events with accessibility data'  },
+                  { value: 'Live', label: 'Data updated in real time'       },
+                ].map(({ value, label }) => (
+                  <div key={label} className="bg-indigo-50 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-indigo-600 mb-1">{value}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Organiser CTA */}
         <section
           className="py-20 px-4 bg-indigo-600 text-white"
           aria-labelledby="cta-heading"
@@ -169,12 +213,13 @@ export default function HomePage() {
             </p>
             <Link
               href="/auth/register"
-              className="bg-white text-indigo-600 font-semibold px-8 py-4 rounded-xl hover:bg-indigo-50 transition-colors text-sm inline-block focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+              className="bg-white text-indigo-600 font-semibold px-8 py-4 rounded-xl hover:bg-indigo-50 transition-colors text-sm inline-block"
             >
               List your event
             </Link>
           </div>
         </section>
+
       </main>
 
       {/* Footer */}
@@ -198,15 +243,23 @@ export default function HomePage() {
               <li>
                 <Link
                   href="/events"
-                  className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white rounded"
+                  className="hover:text-white transition-colors"
                 >
                   Browse
                 </Link>
               </li>
               <li>
                 <Link
+                  href="/insights"
+                  className="hover:text-white transition-colors"
+                >
+                  Insights
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/auth/register"
-                  className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white rounded"
+                  className="hover:text-white transition-colors"
                 >
                   Sign up
                 </Link>
@@ -214,7 +267,7 @@ export default function HomePage() {
               <li>
                 <Link
                   href="/auth/login"
-                  className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white rounded"
+                  className="hover:text-white transition-colors"
                 >
                   Log in
                 </Link>
