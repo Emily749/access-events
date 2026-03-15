@@ -5,24 +5,30 @@ import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import {
   ChevronLeft, Search, Download, CheckCircle, XCircle,
-  Sparkles, AlertCircle, Check, X, Calendar, MapPin,
+  Sparkles, AlertCircle, Check, Calendar, MapPin,
   ExternalLink, CheckCheck, XSquare,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDateShort } from '@/lib/utils'
 
+type DateOption = {
+  startDate: string
+  rawEvent:  any
+}
+
 type PreviewEvent = {
-  _raw:              any
   title:             string
   venueName:         string
   city:              string
   description:       string
-  startDate:         string
+  dates:             DateOption[]
+  selectedDate:      string
   ticketUrl:         string | null
   category:          string
   featuresExtracted: string[]
   aiConfidence:      string
   aiSummary:         string
+  rawEvents:         DateOption[]
 }
 
 type ImportResult = {
@@ -60,7 +66,6 @@ export default function ImportEventsPage() {
   const [errors,    setErrors]    = useState<ImportError[]>([])
   const [summary,   setSummary]   = useState<{ imported: number; failed: number } | null>(null)
 
-  // ── Step 1: fetch previews ──────────────────────────────────────
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!appUser) return
@@ -87,7 +92,6 @@ export default function ImportEventsPage() {
         setError(data.message || 'No events found. Try different keywords.')
       } else {
         setPreviews(data.previews)
-        // Select all by default
         setSelected(new Set(data.previews.map((_: any, i: number) => i)))
         setStep('preview')
       }
@@ -98,7 +102,6 @@ export default function ImportEventsPage() {
     setLoading(false)
   }
 
-  // ── Step 2: save approved events ───────────────────────────────
   async function handleConfirm() {
     if (!appUser || selected.size === 0) return
     setSaving(true)
@@ -106,7 +109,11 @@ export default function ImportEventsPage() {
 
     const approved = previews
       .filter((_, i) => selected.has(i))
-      .map(p => p._raw)
+      .map(p => ({
+        rawEvent:     p.rawEvents.find(d => d.startDate === p.selectedDate)?.rawEvent
+                      || p.rawEvents[0].rawEvent,
+        selectedDate: p.selectedDate,
+      }))
 
     try {
       const res = await fetch('/api/import-events', {
@@ -145,6 +152,12 @@ export default function ImportEventsPage() {
     })
   }
 
+  function updateSelectedDate(i: number, date: string) {
+    setPreviews(prev => prev.map((p, idx) =>
+      idx === i ? { ...p, selectedDate: date } : p
+    ))
+  }
+
   function selectAll()   { setSelected(new Set(previews.map((_, i) => i))) }
   function deselectAll() { setSelected(new Set()) }
 
@@ -172,14 +185,13 @@ export default function ImportEventsPage() {
           Back to dashboard
         </Link>
 
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Import events from Ticketmaster
           </h1>
           <p className="text-gray-500">
-            Search for UK events, review the accessibility information we detect,
-            then choose which events to import.
+            Search for UK events, review accessibility information, select your
+            preferred date for each show, then choose which to import.
           </p>
         </div>
 
@@ -214,7 +226,9 @@ export default function ImportEventsPage() {
               </div>
               {i < arr.length - 1 && (
                 <div className={`h-px w-8 ${
-                  ['search', 'preview', 'done'].indexOf(step) > i ? 'bg-green-400' : 'bg-gray-200'
+                  ['search', 'preview', 'done'].indexOf(step) > i
+                    ? 'bg-green-400'
+                    : 'bg-gray-200'
                 }`} />
               )}
             </div>
@@ -222,7 +236,10 @@ export default function ImportEventsPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-6" role="alert">
+          <div
+            className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-6"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -233,7 +250,10 @@ export default function ImportEventsPage() {
             <h2 className="font-semibold text-gray-900 mb-5">Search Ticketmaster</h2>
             <form onSubmit={handleSearch} className="space-y-4">
               <div>
-                <label htmlFor="query" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                  htmlFor="query"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                   Search term
                 </label>
                 <input
@@ -243,15 +263,18 @@ export default function ImportEventsPage() {
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g. Hamilton, wheelchair accessible, relaxed performance"
+                  placeholder="e.g. Hamilton, Matilda, relaxed performance"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Tip: search for show names, accessibility keywords, or general terms like "theatre"
+                  Repeated shows like Matilda will be grouped together with a date picker
                 </p>
               </div>
 
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                   Location
                 </label>
                 <select
@@ -306,10 +329,10 @@ export default function ImportEventsPage() {
             <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="font-semibold text-gray-900 text-sm">
-                  {previews.length} event{previews.length !== 1 ? 's' : ''} found
+                  {previews.length} show{previews.length !== 1 ? 's' : ''} found
                 </p>
                 <p className="text-gray-500 text-xs mt-0.5">
-                  {selected.size} selected for import
+                  {selected.size} selected for import — pick a date for each show
                 </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -343,30 +366,32 @@ export default function ImportEventsPage() {
                 return (
                   <div
                     key={i}
-                    onClick={() => toggleSelect(i)}
-                    className={`bg-white border-2 rounded-2xl p-5 cursor-pointer transition-all ${
+                    className={`bg-white border-2 rounded-2xl p-5 transition-all ${
                       isSelected
                         ? 'border-indigo-500 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 opacity-60'
+                        : 'border-gray-200 opacity-60'
                     }`}
-                    role="checkbox"
-                    aria-checked={isSelected}
                   >
                     <div className="flex items-start gap-4">
 
                       {/* Checkbox */}
-                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-600 border-indigo-600'
-                          : 'border-gray-300'
-                      }`}>
+                      <button
+                        onClick={() => toggleSelect(i)}
+                        className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-600 border-indigo-600'
+                            : 'border-gray-300 hover:border-indigo-400'
+                        }`}
+                        aria-label={isSelected ? 'Deselect event' : 'Select event'}
+                        aria-pressed={isSelected}
+                      >
                         {isSelected && <Check className="w-3 h-3 text-white" />}
-                      </div>
+                      </button>
 
                       <div className="flex-1 min-w-0">
 
-                        {/* Title and badges */}
-                        <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                        {/* Title and confidence */}
+                        <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                           <h3 className="font-semibold text-gray-900 text-sm leading-snug">
                             {preview.title}
                           </h3>
@@ -375,11 +400,10 @@ export default function ImportEventsPage() {
                               {preview.aiConfidence} confidence
                             </span>
                             {preview.ticketUrl && (
-                              <a
+                              
                                 href={preview.ticketUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
                                 className="text-indigo-500 hover:text-indigo-700"
                                 aria-label="View on Ticketmaster"
                               >
@@ -389,19 +413,49 @@ export default function ImportEventsPage() {
                           </div>
                         </div>
 
-                        {/* Meta */}
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDateShort(preview.startDate)}
-                          </span>
+                        {/* Venue and category */}
+                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-4 flex-wrap">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {preview.venueName}{preview.city && ` · ${preview.city}`}
+                            {preview.venueName}
+                            {preview.city && ` · ${preview.city}`}
                           </span>
                           <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                             {preview.category}
                           </span>
+                        </div>
+
+                        {/* Date picker */}
+                        <div className="mb-4">
+                          <label
+                            htmlFor={`date-${i}`}
+                            className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            {preview.dates.length === 1
+                              ? 'Performance date'
+                              : `Select performance date (${preview.dates.length} available)`}
+                          </label>
+                          <select
+                            id={`date-${i}`}
+                            value={preview.selectedDate}
+                            onChange={e => updateSelectedDate(i, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          >
+                            {preview.dates.map((d, di) => (
+                              <option key={di} value={d.startDate}>
+                                {new Date(d.startDate).toLocaleDateString('en-GB', {
+                                  weekday: 'short',
+                                  day:     'numeric',
+                                  month:   'short',
+                                  year:    'numeric',
+                                  hour:    '2-digit',
+                                  minute:  '2-digit',
+                                })}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Description */}
@@ -414,7 +468,10 @@ export default function ImportEventsPage() {
                         {/* AI summary */}
                         {preview.aiSummary && (
                           <div className="flex items-start gap-1.5 mb-3">
-                            <Sparkles className="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0" />
+                            <Sparkles
+                              className="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0"
+                              aria-hidden="true"
+                            />
                             <p className="text-xs text-indigo-700 leading-relaxed">
                               {preview.aiSummary}
                             </p>
@@ -435,7 +492,7 @@ export default function ImportEventsPage() {
                           </div>
                         ) : (
                           <p className="text-xs text-gray-400 italic">
-                            No accessibility features detected — you can add them manually after import.
+                            No accessibility features detected — add them manually after import.
                           </p>
                         )}
                       </div>
@@ -445,14 +502,14 @@ export default function ImportEventsPage() {
               })}
             </div>
 
-            {/* Confirm button */}
+            {/* Confirm bar */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <p className="font-semibold text-gray-900 text-sm">
-                  Ready to import {selected.size} event{selected.size !== 1 ? 's' : ''}
+                  Ready to import {selected.size} show{selected.size !== 1 ? 's' : ''}
                 </p>
                 <p className="text-gray-500 text-xs mt-0.5">
-                  Deselected events will not be saved
+                  Each show will be imported with your selected date
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -475,7 +532,7 @@ export default function ImportEventsPage() {
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      Import {selected.size} event{selected.size !== 1 ? 's' : ''}
+                      Import {selected.size} show{selected.size !== 1 ? 's' : ''}
                     </>
                   )}
                 </button>
@@ -488,7 +545,6 @@ export default function ImportEventsPage() {
         {step === 'done' && summary && (
           <div className="space-y-6">
 
-            {/* Summary banner */}
             <div className={`rounded-2xl p-5 border ${
               summary.imported > 0
                 ? 'bg-green-50 border-green-100'
@@ -499,17 +555,20 @@ export default function ImportEventsPage() {
                   ? <CheckCircle className="w-5 h-5 text-green-600" />
                   : <AlertCircle className="w-5 h-5 text-amber-600" />
                 }
-                <h3 className={`font-semibold ${summary.imported > 0 ? 'text-green-900' : 'text-amber-900'}`}>
+                <h3 className={`font-semibold ${
+                  summary.imported > 0 ? 'text-green-900' : 'text-amber-900'
+                }`}>
                   Import complete
                 </h3>
               </div>
-              <p className={`text-sm ${summary.imported > 0 ? 'text-green-700' : 'text-amber-700'}`}>
+              <p className={`text-sm ${
+                summary.imported > 0 ? 'text-green-700' : 'text-amber-700'
+              }`}>
                 {summary.imported} event{summary.imported !== 1 ? 's' : ''} imported successfully
                 {summary.failed > 0 && `, ${summary.failed} failed`}.
               </p>
             </div>
 
-            {/* Successful imports */}
             {results.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -570,7 +629,10 @@ export default function ImportEventsPage() {
                       {result.featuresExtracted.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {result.featuresExtracted.map(f => (
-                            <span key={f} className="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full">
+                            <span
+                              key={f}
+                              className="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full"
+                            >
                               {f}
                             </span>
                           ))}
@@ -586,7 +648,6 @@ export default function ImportEventsPage() {
               </div>
             )}
 
-            {/* Errors */}
             {errors.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">

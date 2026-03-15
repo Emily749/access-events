@@ -16,7 +16,7 @@ async function fetchTicketmasterEvents(query: string, location: string) {
     keyword:     query,
     city:        city,
     countryCode: 'GB',
-    size:        '10',
+    size:        '20',
     sort:        'date,asc',
   })
 
@@ -162,7 +162,9 @@ function extractAccessibilityFeatures(
     'next to normal', 'little women',
   ]
 
-  const isKnownShow = knownAccessibleShows.some(s => title.toLowerCase().includes(s))
+  const isKnownShow = knownAccessibleShows.some(s =>
+    title.toLowerCase().includes(s)
+  )
 
   if (isKnownShow) {
     [
@@ -199,7 +201,9 @@ function extractAccessibilityFeatures(
   const availableNames   = availableFeatures.map(f => f.name)
   const filteredFeatures = features.filter(f => availableNames.includes(f))
 
-  const hasExplicitKeywords = Object.values(rules).flat().some(k => text.includes(k))
+  const hasExplicitKeywords = Object.values(rules).flat().some(k =>
+    text.includes(k)
+  )
 
   let confidence: string
   if (hasExplicitKeywords && filteredFeatures.length > 3) {
@@ -238,11 +242,76 @@ function mapCategory(tmCategory: string): string {
   return map[tmCategory] || 'Community & Social'
 }
 
+// Normalise a show title by stripping dates, times, suffixes
+// so "Matilda - 18 Mar" and "Matilda - 19 Mar" both become "Matilda"
+function normaliseTitle(title: string): string {
+  return title
+    .replace(/[-–—|:]\s*(mon|tue|wed|thu|fri|sat|sun).*/gi, '')
+    .replace(/\b\d{1,2}[\/\-]\d{1,2}([\/\-]\d{2,4})?\b/g, '')
+    .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{0,4}/gi, '')
+    .replace(/\b\d{4}\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+async function getOrCreateVenue(
+  venueName: string,
+  address1: string,
+  city: string,
+  postcode: string,
+  latitude: number | null,
+  longitude: number | null
+): Promise<number> {
+  // Check if venue already exists by name
+  const { data: existing } = await supabase
+    .from('venue')
+    .select('venue_id')
+    .ilike('name', venueName)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    console.log('Reusing existing venue:', venueName)
+    return existing.venue_id
+  }
+
+  // Create address
+  const { data: addressData, error: addressError } = await supabase
+    .from('address')
+    .insert({
+      address_line1: address1,
+      city,
+      postcode,
+      country:  'United Kingdom',
+      latitude,
+      longitude,
+    })
+    .select('address_id')
+    .single()
+
+  if (addressError || !addressData) throw new Error('Failed to create address')
+
+  // Create venue
+  const { data: venueData, error: venueError } = await supabase
+    .from('venue')
+    .insert({
+      address_id: addressData.address_id,
+      name:       venueName,
+      capacity:   null,
+    })
+    .select('venue_id')
+    .single()
+
+  if (venueError || !venueData) throw new Error('Failed to create venue')
+  return venueData.venue_id
+}
+
 async function saveEvent(
   tm: any,
   organiserId: number,
   features: any[],
-  location: string
+  location: string,
+  selectedDate: string
 ) {
   const tmVenue   = tm._embedded?.venues?.[0]
   const venueName = tmVenue?.name || 'Venue TBC'
@@ -252,21 +321,9 @@ async function saveEvent(
   const latitude  = tmVenue?.location?.latitude  ? parseFloat(tmVenue.location.latitude)  : null
   const longitude = tmVenue?.location?.longitude ? parseFloat(tmVenue.location.longitude) : null
 
-  const { data: addressData, error: addressError } = await supabase
-    .from('address')
-    .insert({ address_line1: address1, city, postcode, country: 'United Kingdom', latitude, longitude })
-    .select('address_id')
-    .single()
-
-  if (addressError || !addressData) throw new Error('Failed to create address')
-
-  const { data: venueData, error: venueError } = await supabase
-    .from('venue')
-    .insert({ address_id: addressData.address_id, name: venueName, capacity: null })
-    .select('venue_id')
-    .single()
-
-  if (venueError || !venueData) throw new Error('Failed to create venue')
+  const venueId = await getOrCreateVenue(
+    venueName, address1, city, postcode, latitude, longitude
+  )
 
   const tmCategoryName = tm.classifications?.[0]?.segment?.name || ''
   const categoryName   = mapCategory(tmCategoryName)
@@ -282,17 +339,12 @@ async function saveEvent(
   const description = [tm.info, tm.pleaseNote, tm.accessibility?.info]
     .filter(Boolean).join(' ') || ''
 
-  const title     = tm.name || 'Untitled Event'
-  const startDate = tm.dates?.start?.dateTime
-    || (tm.dates?.start?.localDate
-      ? `${tm.dates.start.localDate}T${tm.dates.start.localTime || '19:00:00'}`
-      : new Date().toISOString())
+  const title = normaliseTitle(tm.name || 'Untitled Event')
 
-  const startMs = new Date(startDate).getTime()
-  const endMs   = tm.dates?.end?.dateTime ? new Date(tm.dates.end.dateTime).getTime() : 0
-  const endDate = endMs > startMs
-    ? tm.dates.end.dateTime
-    : new Date(startMs + 3 * 60 * 60 * 1000).toISOString()
+  // Use the selected date from the dropdown
+  const startDate = selectedDate
+  const startMs   = new Date(startDate).getTime()
+  const endDate   = new Date(startMs + 3 * 60 * 60 * 1000).toISOString()
 
   const result = extractAccessibilityFeatures(title, description, venueName, features)
 
@@ -300,7 +352,7 @@ async function saveEvent(
     .from('event')
     .insert({
       organiser_id: organiserId,
-      venue_id:     venueData.venue_id,
+      venue_id:     venueId,
       category_id:  categoryData.category_id,
       title,
       description:  description.slice(0, 2000) || null,
@@ -313,7 +365,9 @@ async function saveEvent(
     .select('event_id')
     .single()
 
-  if (eventError || !eventData) throw new Error(eventError?.message || 'Failed to create event')
+  if (eventError || !eventData) {
+    throw new Error(eventError?.message || 'Failed to create event')
+  }
 
   const matchedFeatures = features.filter(f => result.features?.includes(f.name))
 
@@ -335,6 +389,39 @@ async function saveEvent(
     aiConfidence:      result.confidence,
     aiSummary:         result.summary,
   }
+}
+
+// Group Ticketmaster events by normalised show name + venue
+function groupEventsByShow(tmEvents: any[]): Record<string, any> {
+  const groups: Record<string, any> = {}
+
+  for (const tm of tmEvents) {
+    const rawTitle  = tm.name || 'Untitled'
+    const normTitle = normaliseTitle(rawTitle)
+    const venueName = tm._embedded?.venues?.[0]?.name || 'Venue TBC'
+    const key       = `${normTitle}__${venueName}`.toLowerCase()
+
+    if (!groups[key]) {
+      groups[key] = {
+        normTitle,
+        venueName,
+        representative: tm,
+        dates: [],
+      }
+    }
+
+    const startDate = tm.dates?.start?.dateTime
+      || (tm.dates?.start?.localDate
+        ? `${tm.dates.start.localDate}T${tm.dates.start.localTime || '19:00:00'}`
+        : new Date().toISOString())
+
+    groups[key].dates.push({
+      startDate,
+      rawEvent: tm,
+    })
+  }
+
+  return groups
 }
 
 export async function POST(req: NextRequest) {
@@ -370,18 +457,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── CONFIRM MODE: save only approved events ──────────────────
+    // ── CONFIRM MODE ─────────────────────────────────────────────
     if (mode === 'confirm' && approved) {
       const results = []
       const errors  = []
 
-      for (const tm of approved) {
+      for (const item of approved) {
         try {
-          const saved = await saveEvent(tm, organiserId, features, location)
+          const saved = await saveEvent(
+            item.rawEvent,
+            organiserId,
+            features,
+            location,
+            item.selectedDate
+          )
           results.push(saved)
         } catch (err: any) {
-          console.error('Save error:', tm.name, err)
-          errors.push({ title: tm.name || 'Unknown', error: err.message })
+          console.error('Save error:', err)
+          errors.push({ title: item.rawEvent?.name || 'Unknown', error: err.message })
         }
       }
 
@@ -393,7 +486,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── PREVIEW MODE: fetch and analyse without saving ────────────
+    // ── PREVIEW MODE ─────────────────────────────────────────────
     if (!query) {
       return NextResponse.json(
         { error: 'query is required for preview mode' },
@@ -407,38 +500,42 @@ export async function POST(req: NextRequest) {
     if (!tmEvents.length) {
       return NextResponse.json({
         previews: [],
-        message:  'No events found for this search. Try different keywords or location.',
+        message:  'No events found. Try different keywords or location.',
       })
     }
 
-    const previews = tmEvents.map((tm: any) => {
-      const tmVenue   = tm._embedded?.venues?.[0]
-      const venueName = tmVenue?.name || 'Venue TBC'
-      const city      = tmVenue?.city?.name || location.split(',')[0].trim()
+    // Group by show name + venue
+    const groups = groupEventsByShow(tmEvents)
+
+    const previews = Object.values(groups).map((group: any) => {
+      const tm          = group.representative
+      const venueName   = group.venueName
+      const city        = tm._embedded?.venues?.[0]?.city?.name || location.split(',')[0].trim()
       const description = [tm.info, tm.pleaseNote, tm.accessibility?.info]
         .filter(Boolean).join(' ') || ''
-      const title     = tm.name || 'Untitled Event'
+      const title       = group.normTitle
+      const result      = extractAccessibilityFeatures(title, description, venueName, features)
 
-      const startDate = tm.dates?.start?.dateTime
-        || (tm.dates?.start?.localDate
-          ? `${tm.dates.start.localDate}T${tm.dates.start.localTime || '19:00:00'}`
-          : new Date().toISOString())
-
-      const result = extractAccessibilityFeatures(title, description, venueName, features)
+      // Sort dates ascending
+      const sortedDates = group.dates.sort(
+        (a: any, b: any) =>
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+      )
 
       return {
-        // Store the raw tm object so we can save it later
-        _raw:              tm,
         title,
         venueName,
         city,
         description:       description.slice(0, 300),
-        startDate,
+        dates:             sortedDates,
+        selectedDate:      sortedDates[0].startDate,
         ticketUrl:         tm.url || null,
         category:          mapCategory(tm.classifications?.[0]?.segment?.name || ''),
         featuresExtracted: result.features,
         aiConfidence:      result.confidence,
         aiSummary:         result.summary,
+        // Store all raw events for this group so user can pick date
+        rawEvents:         sortedDates,
       }
     })
 
