@@ -285,19 +285,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
-```
-
----
-
-**Step 3 — Add the service role key to environment variables**
-
-The API route needs elevated Supabase permissions to insert data. Go to Supabase → **Project Settings** → **API** and copy the **service_role** key.
-
-Add to `.env.local`:
-```
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-```
-
-Also add it to Vercel — go to your Vercel project → **Settings** → **Environment Variables** and add:
-```
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
