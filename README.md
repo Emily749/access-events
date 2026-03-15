@@ -1,19 +1,39 @@
--- ============================================================
--- AccessEvents — Full Database Setup
--- PostgreSQL via Supabase
--- ============================================================
+# AccessEvents — Database Setup
 
+Full PostgreSQL setup script for the AccessEvents platform.  
+Run on **Supabase** via the SQL Editor.
 
--- ============================================================
--- PART 1: SCHEMA — DDL
--- Ran in this order to respect foreign key dependencies
--- ============================================================
+---
 
+## Overview
 
--- ------------------------------------------------------------
--- BLOCK 1: Lookup / type tables
--- ------------------------------------------------------------
+| Section | Description |
+|---------|-------------|
+| Part 1  | Schema — all 26 tables in dependency order |
+| Part 2  | Supabase Auth trigger |
+| Part 3  | Row Level Security policies |
+| Part 4  | Sample data |
 
+---
+
+## Prerequisites
+
+- A Supabase project (free tier is sufficient)
+- Access to the Supabase SQL Editor
+- Run each block separately in the order shown
+
+---
+
+## Part 1 — Schema (DDL)
+
+Run in this exact order to respect foreign key dependencies.
+
+---
+
+### Block 1 — Lookup / Type Tables
+
+No foreign key dependencies. Run first.
+```sql
 CREATE TABLE disability_type (
     disability_id   SERIAL PRIMARY KEY,
     name            VARCHAR(100) NOT NULL UNIQUE,
@@ -49,12 +69,12 @@ CREATE TABLE issue_type (
     label           VARCHAR(100) NOT NULL,
     description     TEXT
 );
+```
 
+---
 
--- ------------------------------------------------------------
--- BLOCK 2: Core independent tables
--- ------------------------------------------------------------
-
+### Block 2 — Core Independent Tables
+```sql
 CREATE TABLE address (
     address_id      SERIAL PRIMARY KEY,
     address_line1   VARCHAR(255) NOT NULL,
@@ -85,12 +105,12 @@ CREATE TABLE app_user (
     is_verified       BOOLEAN      NOT NULL DEFAULT FALSE,
     profile_photo_url VARCHAR(500)
 );
+```
 
+---
 
--- ------------------------------------------------------------
--- BLOCK 3: Tables dependent on Block 2
--- ------------------------------------------------------------
-
+### Block 3 — Tables Dependent on Block 2
+```sql
 CREATE TABLE venue (
     venue_id        SERIAL PRIMARY KEY,
     address_id      INT          NOT NULL REFERENCES address(address_id),
@@ -125,12 +145,12 @@ CREATE TABLE search_log (
     results_count   INT          NOT NULL DEFAULT 0,
     searched_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
+```
 
+---
 
--- ------------------------------------------------------------
--- BLOCK 4: Junction and child tables
--- ------------------------------------------------------------
-
+### Block 4 — Junction and Child Tables
+```sql
 CREATE TABLE user_disability (
     user_id         INT          NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
     disability_id   INT          NOT NULL REFERENCES disability_type(disability_id),
@@ -243,12 +263,12 @@ CREATE TABLE search_filter (
     filter_key      VARCHAR(50)  NOT NULL,
     filter_value    VARCHAR(255) NOT NULL
 );
+```
 
+---
 
--- ------------------------------------------------------------
--- BLOCK 5: Indexes
--- ------------------------------------------------------------
-
+### Block 5 — Indexes
+```sql
 CREATE INDEX idx_event_organiser     ON event(organiser_id);
 CREATE INDEX idx_event_venue         ON event(venue_id);
 CREATE INDEX idx_event_category      ON event(category_id);
@@ -261,13 +281,15 @@ CREATE INDEX idx_notification_user   ON notification(user_id);
 CREATE INDEX idx_recommendation_user ON recommendation(user_id);
 CREATE INDEX idx_search_log_user     ON search_log(user_id);
 CREATE INDEX idx_venue_address       ON venue(address_id);
+```
 
+---
 
--- ============================================================
--- PART 2: SUPABASE AUTH TRIGGER
--- Automatically creates an app_user row when a user registers
--- ============================================================
+## Part 2 — Supabase Auth Trigger
 
+Automatically creates a row in `app_user` whenever a new user registers
+via Supabase Auth.
+```sql
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -286,36 +308,40 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+```
 
+---
 
--- ============================================================
--- PART 3: ROW LEVEL SECURITY POLICIES
--- ============================================================
+## Part 3 — Row Level Security (RLS)
 
-ALTER TABLE event                   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE venue                   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE address                 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_category          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_accessibility     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accessibility_feature   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_image             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE review                  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE app_user                ENABLE ROW LEVEL SECURITY;
-ALTER TABLE saved_event             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preference         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_disability         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE disability_type         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE venue_accessibility     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accessibility_report    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE issue_type              ENABLE ROW LEVEL SECURITY;
-ALTER TABLE report_status           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notification            ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notification_type       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search_log              ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search_filter           ENABLE ROW LEVEL SECURITY;
+### Enable RLS on all tables
+```sql
+ALTER TABLE event                        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venue                        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE address                      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_category               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_accessibility          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accessibility_feature        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_image                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE review                       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_user                     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_event                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preference              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_disability              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE disability_type              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venue_accessibility          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accessibility_report         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE issue_type                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE report_status                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_type            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_log                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_filter                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feature_disability_relevance ENABLE ROW LEVEL SECURITY;
+```
 
--- Public read policies
+### Public read policies
+```sql
 CREATE POLICY "Public can view events"
   ON event FOR SELECT USING (true);
 
@@ -361,7 +387,15 @@ CREATE POLICY "Public can view notification types"
 CREATE POLICY "Public can view feature disability relevance"
   ON feature_disability_relevance FOR SELECT USING (true);
 
--- Saved events
+CREATE POLICY "Public can view user preferences"
+  ON user_preference FOR SELECT USING (true);
+
+CREATE POLICY "Public can view user disabilities"
+  ON user_disability FOR SELECT USING (true);
+```
+
+### Saved events
+```sql
 CREATE POLICY "Users manage own saved events" ON saved_event
   FOR ALL USING (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -376,11 +410,10 @@ CREATE POLICY "Users can delete own saved events" ON saved_event
   FOR DELETE USING (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
   );
+```
 
--- User preferences
-CREATE POLICY "Public can view user preferences"
-  ON user_preference FOR SELECT USING (true);
-
+### User preferences
+```sql
 CREATE POLICY "Users can insert own preferences" ON user_preference
   FOR INSERT WITH CHECK (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -390,11 +423,10 @@ CREATE POLICY "Users can delete own preferences" ON user_preference
   FOR DELETE USING (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
   );
+```
 
--- User disabilities
-CREATE POLICY "Public can view user disabilities"
-  ON user_disability FOR SELECT USING (true);
-
+### User disabilities
+```sql
 CREATE POLICY "Users can insert own disabilities" ON user_disability
   FOR INSERT WITH CHECK (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -404,14 +436,18 @@ CREATE POLICY "Users can delete own disabilities" ON user_disability
   FOR DELETE USING (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
   );
+```
 
--- Reviews
+### Reviews
+```sql
 CREATE POLICY "Users can insert reviews" ON review
   FOR INSERT WITH CHECK (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
   );
+```
 
--- Accessibility reports
+### Accessibility reports
+```sql
 CREATE POLICY "Users can insert reports" ON accessibility_report
   FOR INSERT WITH CHECK (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -428,8 +464,10 @@ CREATE POLICY "Admins can update reports" ON accessibility_report
   FOR UPDATE USING (
     (SELECT role FROM app_user WHERE email = auth.jwt()->>'email') = 'admin'
   );
+```
 
--- Notifications
+### Notifications
+```sql
 CREATE POLICY "Users can view own notifications" ON notification
   FOR SELECT USING (
     user_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -442,8 +480,10 @@ CREATE POLICY "Users can update own notifications" ON notification
 
 CREATE POLICY "Authenticated users can insert notifications" ON notification
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+```
 
--- Events — organiser management
+### Events — organiser management
+```sql
 CREATE POLICY "Organisers can insert events" ON event
   FOR INSERT WITH CHECK (
     organiser_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
@@ -459,7 +499,6 @@ CREATE POLICY "Organisers can delete own events" ON event
     organiser_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
   );
 
--- Event accessibility — organiser management
 CREATE POLICY "Organisers can insert event accessibility" ON event_accessibility
   FOR INSERT WITH CHECK (
     event_id IN (
@@ -475,8 +514,10 @@ CREATE POLICY "Organisers can delete event accessibility" ON event_accessibility
       WHERE organiser_id = (SELECT user_id FROM app_user WHERE email = auth.jwt()->>'email')
     )
   );
+```
 
--- Venues and addresses — authenticated users can insert
+### Venues and addresses
+```sql
 CREATE POLICY "Authenticated users can insert addresses" ON address
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
@@ -485,8 +526,10 @@ CREATE POLICY "Authenticated users can insert venues" ON venue
 
 CREATE POLICY "Authenticated users can insert venue accessibility" ON venue_accessibility
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+```
 
--- Search logs — anyone can insert, admins can view
+### Search logs
+```sql
 CREATE POLICY "Anyone can insert search logs" ON search_log
   FOR INSERT WITH CHECK (true);
 
@@ -502,13 +545,16 @@ CREATE POLICY "Admins can view search filters" ON search_filter
   FOR SELECT USING (
     (SELECT role FROM app_user WHERE email = auth.jwt()->>'email') = 'admin'
   );
+```
 
+---
 
--- ============================================================
--- PART 4: SAMPLE DATA — DML
--- ============================================================
+## Part 4 — Sample Data (DML)
 
--- Lookup tables
+---
+
+### Lookup tables
+```sql
 INSERT INTO disability_type (name, category, description) VALUES
 ('Deaf or hard of hearing',  'Sensory',       'Partial or total hearing loss affecting communication'),
 ('Blind or low vision',      'Sensory',       'Partial or total vision loss affecting sight'),
@@ -552,24 +598,32 @@ INSERT INTO report_status (status_code, label, description) VALUES
 ('closed',       'Closed',       'Report closed with no further action required');
 
 INSERT INTO issue_type (issue_type, label, description) VALUES
-('inaccurate_feature', 'Inaccurate Feature',  'A listed accessibility feature does not exist or is incorrect'),
-('missing_feature',    'Missing Feature',     'An accessibility feature present at the event is not listed'),
-('poor_quality',       'Poor Quality',        'A feature was present but poorly implemented'),
-('venue_mismatch',     'Venue Mismatch',      'Venue accessibility information does not match reality'),
-('other',              'Other',               'Issue does not fall into any other category');
+('inaccurate_feature', 'Inaccurate Feature', 'A listed accessibility feature does not exist or is incorrect'),
+('missing_feature',    'Missing Feature',    'An accessibility feature present at the event is not listed'),
+('poor_quality',       'Poor Quality',       'A feature was present but poorly implemented'),
+('venue_mismatch',     'Venue Mismatch',     'Venue accessibility information does not match reality'),
+('other',              'Other',              'Issue does not fall into any other category');
+```
 
--- Addresses
+---
+
+### Addresses
+```sql
 INSERT INTO address (address_line1, postcode, city, country, latitude, longitude) VALUES
-('Royal Festival Hall, Belvedere Road',  'SE1 8XX',  'London',     'United Kingdom',  51.505400, -0.116773),
-('Birmingham Symphony Hall, Broad St',   'B1 2EA',   'Birmingham', 'United Kingdom',  52.477200, -1.910990),
-('Manchester Central, Windmill St',      'M2 3GX',   'Manchester', 'United Kingdom',  53.476900, -2.246900),
-('Edinburgh Playhouse, 18 Greenside Pl', 'EH1 3AA',  'Edinburgh',  'United Kingdom',  55.957800, -3.183200),
-('Bristol Beacon, Canon Street',         'BS1 5UH',  'Bristol',    'United Kingdom',  51.454800, -2.597800),
-('Leeds First Direct Arena, Arena Way',  'LS2 8BY',  'Leeds',      'United Kingdom',  53.797700, -1.546900),
-('The O2, Peninsula Square',             'SE10 0DX', 'London',     'United Kingdom',  51.503200, -0.003100),
-('Glasgow SEC Centre, Exhibition Way',   'G3 8YW',   'Glasgow',    'United Kingdom',  55.860900, -4.289600);
+('Royal Festival Hall, Belvedere Road',  'SE1 8XX',  'London',     'United Kingdom', 51.505400, -0.116773),
+('Birmingham Symphony Hall, Broad St',   'B1 2EA',   'Birmingham', 'United Kingdom', 52.477200, -1.910990),
+('Manchester Central, Windmill St',      'M2 3GX',   'Manchester', 'United Kingdom', 53.476900, -2.246900),
+('Edinburgh Playhouse, 18 Greenside Pl', 'EH1 3AA',  'Edinburgh',  'United Kingdom', 55.957800, -3.183200),
+('Bristol Beacon, Canon Street',         'BS1 5UH',  'Bristol',    'United Kingdom', 51.454800, -2.597800),
+('Leeds First Direct Arena, Arena Way',  'LS2 8BY',  'Leeds',      'United Kingdom', 53.797700, -1.546900),
+('The O2, Peninsula Square',             'SE10 0DX', 'London',     'United Kingdom', 51.503200, -0.003100),
+('Glasgow SEC Centre, Exhibition Way',   'G3 8YW',   'Glasgow',    'United Kingdom', 55.860900, -4.289600);
+```
 
--- Accessibility features
+---
+
+### Accessibility features
+```sql
 INSERT INTO accessibility_feature (name, description, category, icon_code, is_active) VALUES
 ('BSL Interpretation',        'British Sign Language interpreter present throughout the event',         'Communication', 'bsl',           TRUE),
 ('Audio Description',         'Live or recorded audio description service available',                   'Sensory',       'audio_desc',    TRUE),
@@ -586,8 +640,12 @@ INSERT INTO accessibility_feature (name, description, category, icon_code, is_ac
 ('Captioning',                'Live captioning or subtitles provided on screens',                       'Communication', 'caption',       TRUE),
 ('Low Sensory Environment',   'Event designed to minimise sensory overload with controlled stimuli',    'Sensory',       'low_sensory',   TRUE),
 ('Priority Seating',          'Reserved priority seating available near exits or accessible areas',     'Mobility',      'priority_seat', TRUE);
+```
 
--- Users
+---
+
+### Users
+```sql
 INSERT INTO app_user (username, email, password_hash, role, is_verified) VALUES
 ('sarah_j',     'sarah.jones@email.com',          'hashed_pw_001', 'attendee',  TRUE),
 ('marcus_t',    'marcus.thompson@email.com',       'hashed_pw_002', 'attendee',  TRUE),
@@ -603,34 +661,81 @@ INSERT INTO app_user (username, email, password_hash, role, is_verified) VALUES
 ('edin_play',   'bookings@edinburghplayhouse.com', 'hashed_pw_012', 'organiser', TRUE),
 ('bristol_bcn', 'hello@bristolbeacon.org',         'hashed_pw_013', 'organiser', TRUE),
 ('admin_user',  'admin@accessevents.co.uk',        'hashed_pw_014', 'admin',     TRUE);
+```
 
--- Venues
+---
+
+### Venues
+```sql
 INSERT INTO venue (address_id, name, capacity, transport_info, parking_info) VALUES
-(1, 'Royal Festival Hall',       2900,  'Waterloo station 3 min walk. Bus routes 1, 4, 26, 76, 77, 381', 'No on-site parking. NCP at Upper Ground 5 min walk. Blue badge bays on Belvedere Road'),
-(2, 'Birmingham Symphony Hall',  2262,  'New Street station 10 min walk. Tram stop at Centenary Square',  'NCP Broad Street adjacent. Blue badge spaces on Brindleyplace'),
-(3, 'Manchester Central',        8000,  'Deansgate station 5 min walk. Metrolink at St Peters Square',    'Q-Park Great Northern nearby. Limited Blue badge on Windmill Street'),
-(4, 'Edinburgh Playhouse',       3059,  'Waverley station 10 min walk. Multiple bus routes on Leith Walk', 'No on-site parking. NCP at St James Quarter nearby'),
-(5, 'Bristol Beacon',            1800,  'Bristol Temple Meads 15 min walk. Bus routes 8, 9 nearby',       'Trenchard Street car park 3 min walk. Blue badge bays on Canon Street'),
-(6, 'First Direct Arena Leeds',  13500, 'Leeds station 10 min walk. Bus routes 1, 6, 28 to Arena Way',    'Arla Foods Arena car park adjacent. Blue badge level 1 entrance'),
-(7, 'The O2 Arena',              20000, 'North Greenwich station 1 min walk. Thames Clipper available',    'On-site parking available. Blue badge spaces at main entrance'),
-(8, 'SEC Centre Glasgow',        10000, 'Exhibition Centre station adjacent. Anderston station 10 min',    'On-site parking P1 and P2. Blue badge spaces near main entrance');
+(1, 'Royal Festival Hall',      2900,  'Waterloo station 3 min walk. Bus routes 1, 4, 26, 76, 77, 381', 'No on-site parking. NCP at Upper Ground 5 min walk. Blue badge bays on Belvedere Road'),
+(2, 'Birmingham Symphony Hall', 2262,  'New Street station 10 min walk. Tram stop at Centenary Square',  'NCP Broad Street adjacent. Blue badge spaces on Brindleyplace'),
+(3, 'Manchester Central',       8000,  'Deansgate station 5 min walk. Metrolink at St Peters Square',    'Q-Park Great Northern nearby. Limited Blue badge on Windmill Street'),
+(4, 'Edinburgh Playhouse',      3059,  'Waverley station 10 min walk. Multiple bus routes on Leith Walk', 'No on-site parking. NCP at St James Quarter nearby'),
+(5, 'Bristol Beacon',           1800,  'Bristol Temple Meads 15 min walk. Bus routes 8, 9 nearby',       'Trenchard Street car park 3 min walk. Blue badge bays on Canon Street'),
+(6, 'First Direct Arena Leeds', 13500, 'Leeds station 10 min walk. Bus routes 1, 6, 28 to Arena Way',    'Arla Foods Arena car park adjacent. Blue badge level 1 entrance'),
+(7, 'The O2 Arena',             20000, 'North Greenwich station 1 min walk. Thames Clipper available',    'On-site parking available. Blue badge spaces at main entrance'),
+(8, 'SEC Centre Glasgow',       10000, 'Exhibition Centre station adjacent. Anderston station 10 min',    'On-site parking P1 and P2. Blue badge spaces near main entrance');
+```
 
--- Events
+---
+
+### Events
+```sql
 INSERT INTO event (organiser_id, venue_id, category_id, title, description, start_time, end_time, status, ticket_url, is_free) VALUES
-(9,  1, 1, 'Relaxed Prom: A Night at the Orchestra',       'A relaxed performance of classic orchestral pieces with adjusted lighting and sound levels, quiet spaces and a welcoming atmosphere for all.',           '2026-05-10 19:00:00', '2026-05-10 21:30:00', 'upcoming', 'https://tickets.rfl.co.uk/prom001',    FALSE),
-(9,  1, 2, 'BSL Interpreted Theatre: The Glass Menagerie', 'Tennessee Williams classic performed with a BSL interpreter on stage throughout. Captioning also provided on side screens.',                            '2026-05-18 19:30:00', '2026-05-18 22:00:00', 'upcoming', 'https://tickets.rfl.co.uk/theatre001', FALSE),
-(10, 2, 1, 'Symphony in the City: Beethoven Evening',      'An evening of Beethoven symphonies performed by the City of Birmingham Symphony Orchestra. Hearing loop and large print programmes available.',          '2026-06-03 19:00:00', '2026-06-03 21:30:00', 'upcoming', 'https://cbso.co.uk/beethoven',         FALSE),
-(11, 3, 4, 'Inclusive Tech Talks: AI for Everyone',        'A series of accessible talks on artificial intelligence. BSL interpretation, captioning and quiet room provided.',                                     '2026-05-25 10:00:00', '2026-05-25 16:00:00', 'upcoming', NULL,                                   TRUE),
-(12, 4, 2, 'Audio Described Performance: Hamilton',        'The West End sensation with full audio description service and touch tours available pre-show.',                                                        '2026-06-14 19:30:00', '2026-06-14 22:30:00', 'upcoming', 'https://edinburghplayhouse.com/hamilton',FALSE),
-(13, 5, 8, 'Mindfulness and Movement: Accessible Yoga',   'A gentle accessible yoga session designed for wheelchair users and those with limited mobility.',                                                       '2026-05-31 10:00:00', '2026-05-31 12:00:00', 'upcoming', NULL,                                   TRUE),
-(10, 2, 5, 'Community Craft Morning',                     'A relaxed community crafting session suitable for adults with learning disabilities, autism and sensory sensitivities.',                                 '2026-06-07 10:30:00', '2026-06-07 13:00:00', 'upcoming', NULL,                                   TRUE),
-(11, 3, 6, 'Accessible Food Festival',                    'A food and drink festival with full step-free access, accessible toilets, quiet zones and BSL-interpreted cookery demonstrations.',                      '2026-07-04 11:00:00', '2026-07-06 18:00:00', 'upcoming', 'https://mcr-food-fest.co.uk',          FALSE),
-(9,  1, 7, 'Relaxed Cinema: Hidden Figures',              'Relaxed screening of Hidden Figures with subtitles, adjusted sound and lighting.',                                                                      '2026-05-22 14:00:00', '2026-05-22 16:30:00', 'upcoming', NULL,                                   TRUE),
-(12, 4, 1, 'Folk Music Festival: Opening Night',          'Opening night of the Edinburgh Folk Festival with hearing loop, BSL interpretation and accessible viewing platforms.',                                   '2026-08-01 18:00:00', '2026-08-01 22:00:00', 'upcoming', 'https://edinfolkfest.co.uk/opening',   FALSE),
-(13, 5, 3, 'Wheelchair Basketball Taster Session',        'Try wheelchair basketball in a friendly inclusive environment. All equipment provided.',                                                                '2026-06-21 13:00:00', '2026-06-21 15:30:00', 'upcoming', NULL,                                   TRUE),
-(14, 6, 1, 'Inclusive Music Showcase',                    'Showcasing musicians with disabilities. Full accessibility suite including BSL, captioning, hearing loop, quiet room and step-free access throughout.',  '2026-07-12 17:00:00', '2026-07-12 21:00:00', 'upcoming', 'https://firstdirectarena.com/showcase', FALSE);
+(9,  1, 1, 'Relaxed Prom: A Night at the Orchestra',
+  'A relaxed performance of classic orchestral pieces with adjusted lighting and sound levels, quiet spaces and a welcoming atmosphere for all.',
+  '2026-05-10 19:00:00', '2026-05-10 21:30:00', 'upcoming', 'https://tickets.rfl.co.uk/prom001', FALSE),
 
--- User disabilities
+(9,  1, 2, 'BSL Interpreted Theatre: The Glass Menagerie',
+  'Tennessee Williams classic performed with a BSL interpreter on stage throughout. Captioning also provided on side screens.',
+  '2026-05-18 19:30:00', '2026-05-18 22:00:00', 'upcoming', 'https://tickets.rfl.co.uk/theatre001', FALSE),
+
+(10, 2, 1, 'Symphony in the City: Beethoven Evening',
+  'An evening of Beethoven symphonies performed by the City of Birmingham Symphony Orchestra. Hearing loop and large print programmes available.',
+  '2026-06-03 19:00:00', '2026-06-03 21:30:00', 'upcoming', 'https://cbso.co.uk/beethoven', FALSE),
+
+(11, 3, 4, 'Inclusive Tech Talks: AI for Everyone',
+  'A series of accessible talks on artificial intelligence. BSL interpretation, captioning and quiet room provided.',
+  '2026-05-25 10:00:00', '2026-05-25 16:00:00', 'upcoming', NULL, TRUE),
+
+(12, 4, 2, 'Audio Described Performance: Hamilton',
+  'The West End sensation with full audio description service and touch tours available pre-show.',
+  '2026-06-14 19:30:00', '2026-06-14 22:30:00', 'upcoming', 'https://edinburghplayhouse.com/hamilton', FALSE),
+
+(13, 5, 8, 'Mindfulness and Movement: Accessible Yoga',
+  'A gentle accessible yoga session designed for wheelchair users and those with limited mobility.',
+  '2026-05-31 10:00:00', '2026-05-31 12:00:00', 'upcoming', NULL, TRUE),
+
+(10, 2, 5, 'Community Craft Morning',
+  'A relaxed community crafting session suitable for adults with learning disabilities, autism and sensory sensitivities.',
+  '2026-06-07 10:30:00', '2026-06-07 13:00:00', 'upcoming', NULL, TRUE),
+
+(11, 3, 6, 'Accessible Food Festival',
+  'A food and drink festival with full step-free access, accessible toilets, quiet zones and BSL-interpreted cookery demonstrations.',
+  '2026-07-04 11:00:00', '2026-07-06 18:00:00', 'upcoming', 'https://mcr-food-fest.co.uk', FALSE),
+
+(9,  1, 7, 'Relaxed Cinema: Hidden Figures',
+  'Relaxed screening of Hidden Figures with subtitles, adjusted sound and lighting.',
+  '2026-05-22 14:00:00', '2026-05-22 16:30:00', 'upcoming', NULL, TRUE),
+
+(12, 4, 1, 'Folk Music Festival: Opening Night',
+  'Opening night of the Edinburgh Folk Festival with hearing loop, BSL interpretation and accessible viewing platforms.',
+  '2026-08-01 18:00:00', '2026-08-01 22:00:00', 'upcoming', 'https://edinfolkfest.co.uk/opening', FALSE),
+
+(13, 5, 3, 'Wheelchair Basketball Taster Session',
+  'Try wheelchair basketball in a friendly inclusive environment. All equipment provided.',
+  '2026-06-21 13:00:00', '2026-06-21 15:30:00', 'upcoming', NULL, TRUE),
+
+(14, 6, 1, 'Inclusive Music Showcase',
+  'Showcasing musicians with disabilities. Full accessibility suite including BSL, captioning, hearing loop, quiet room and step-free access.',
+  '2026-07-12 17:00:00', '2026-07-12 21:00:00', 'upcoming', 'https://firstdirectarena.com/showcase', FALSE);
+```
+
+---
+
+### User disabilities
+```sql
 INSERT INTO user_disability (user_id, disability_id, is_primary) VALUES
 (1, 1, TRUE),  (1, 6, FALSE),
 (2, 8, TRUE),  (2, 3, FALSE),
@@ -646,8 +751,12 @@ INSERT INTO user_disability (user_id, disability_id, is_primary) VALUES
 (12, 2, TRUE),
 (13, 6, TRUE), (13, 5, FALSE),
 (14, 7, TRUE);
+```
 
--- User preferences
+---
+
+### User preferences
+```sql
 INSERT INTO user_preference (user_id, feature_id, priority_level) VALUES
 (1, 1, 5),  (1, 3, 5),  (1, 13, 4), (1, 7, 3),  (1, 8, 2),
 (2, 4, 5),  (2, 6, 5),  (2, 5, 4),  (2, 12, 4), (2, 11, 3), (2, 15, 2),
@@ -663,131 +772,155 @@ INSERT INTO user_preference (user_id, feature_id, priority_level) VALUES
 (12, 2, 5), (12, 8, 5), (12, 9, 4), (12, 13, 3),
 (13, 7, 5), (13, 10, 4),(13, 14, 4),(13, 15, 3),(13, 4, 2),
 (14, 8, 5), (14, 13, 4),(14, 1, 3);
+```
 
--- Feature disability relevance
+---
+
+### Feature disability relevance
+```sql
 INSERT INTO feature_disability_relevance (feature_id, disability_id, relevance_score) VALUES
-(1,  1, 10), (3,  1, 10), (13, 1, 9),
-(4,  3, 10), (6,  3, 10), (5,  3, 9),  (12, 3, 8), (15, 3, 7), (11, 3, 7),
-(2,  2, 10), (8,  2, 9),  (9,  2, 8),
-(7,  4, 10), (10, 4, 10), (14, 4, 9),
-(7,  6, 9),  (14, 6, 8),  (10, 6, 7),
-(8,  7, 8),  (13, 7, 6),
-(4,  8, 10), (6,  8, 10), (5,  8, 9),  (11, 8, 8),
-(7,  5, 8),  (15, 5, 7);
+(1,  1, 10), (3,  1, 10), (13, 1,  9),
+(4,  3, 10), (6,  3, 10), (5,  3,  9), (12, 3, 8), (15, 3, 7), (11, 3, 7),
+(2,  2, 10), (8,  2,  9), (9,  2,  8),
+(7,  4, 10), (10, 4, 10), (14, 4,  9),
+(7,  6,  9), (14, 6,  8), (10, 6,  7),
+(8,  7,  8), (13, 7,  6),
+(4,  8, 10), (6,  8, 10), (5,  8,  9), (11, 8, 8),
+(7,  5,  8), (15, 5,  7);
+```
 
--- Venue accessibility
+---
+
+### Venue accessibility
+```sql
 INSERT INTO venue_accessibility (venue_id, feature_id, details, is_confirmed) VALUES
-(1, 3,  'Hearing loop installed in main auditorium and foyer',              TRUE),
-(1, 4,  'Full step-free access via main entrance and lifts to all levels',  TRUE),
-(1, 5,  'Accessible toilets on all levels',                                 TRUE),
-(1, 6,  'Wheelchair spaces available in stalls and circle',                 TRUE),
-(1, 11, 'Assistance dog water station in main foyer',                       TRUE),
-(1, 12, 'Blue badge parking bays on Belvedere Road',                        TRUE),
-(2, 3,  'Hearing loop throughout the main auditorium',                      TRUE),
-(2, 4,  'Step-free access from Broad Street entrance',                      TRUE),
-(2, 5,  'Accessible toilets near main entrance and level 2',                TRUE),
-(2, 6,  'Wheelchair spaces in stalls row A',                                TRUE),
-(3, 4,  'Step-free access via main Windmill Street entrance',               TRUE),
-(3, 5,  'Accessible toilets throughout the venue',                          TRUE),
-(3, 6,  'Dedicated wheelchair spaces across all hall configurations',       TRUE),
-(4, 4,  'Step-free access via side entrance on Greenside Place',            TRUE),
-(4, 5,  'Accessible toilet facilities on ground floor',                     TRUE),
-(4, 3,  'Hearing loop installed in main auditorium',                        TRUE),
-(5, 4,  'Full step-free access throughout the building',                    TRUE),
-(5, 5,  'Accessible toilets on ground and first floor',                     TRUE),
-(5, 6,  'Wheelchair spaces with companion seating in main hall',            TRUE),
-(6, 4,  'Step-free access from car park and main entrance',                 TRUE),
-(6, 5,  'Accessible toilets on all levels',                                 TRUE),
-(6, 6,  'Wheelchair spaces at floor level near stage',                      TRUE),
-(6, 12, 'Dedicated blue badge parking spaces on level 1',                   TRUE);
+(1, 3,  'Hearing loop installed in main auditorium and foyer',             TRUE),
+(1, 4,  'Full step-free access via main entrance and lifts to all levels', TRUE),
+(1, 5,  'Accessible toilets on all levels',                                TRUE),
+(1, 6,  'Wheelchair spaces available in stalls and circle',                TRUE),
+(1, 11, 'Assistance dog water station in main foyer',                      TRUE),
+(1, 12, 'Blue badge parking bays on Belvedere Road',                       TRUE),
+(2, 3,  'Hearing loop throughout the main auditorium',                     TRUE),
+(2, 4,  'Step-free access from Broad Street entrance',                     TRUE),
+(2, 5,  'Accessible toilets near main entrance and level 2',               TRUE),
+(2, 6,  'Wheelchair spaces in stalls row A',                               TRUE),
+(3, 4,  'Step-free access via main Windmill Street entrance',              TRUE),
+(3, 5,  'Accessible toilets throughout the venue',                         TRUE),
+(3, 6,  'Dedicated wheelchair spaces across all hall configurations',      TRUE),
+(4, 4,  'Step-free access via side entrance on Greenside Place',           TRUE),
+(4, 5,  'Accessible toilet facilities on ground floor',                    TRUE),
+(4, 3,  'Hearing loop installed in main auditorium',                       TRUE),
+(5, 4,  'Full step-free access throughout the building',                   TRUE),
+(5, 5,  'Accessible toilets on ground and first floor',                    TRUE),
+(5, 6,  'Wheelchair spaces with companion seating in main hall',           TRUE),
+(6, 4,  'Step-free access from car park and main entrance',                TRUE),
+(6, 5,  'Accessible toilets on all levels',                                TRUE),
+(6, 6,  'Wheelchair spaces at floor level near stage',                     TRUE),
+(6, 12, 'Dedicated blue badge parking spaces on level 1',                  TRUE);
+```
 
--- Event accessibility
+---
+
+### Event accessibility
+```sql
 INSERT INTO event_accessibility (event_id, feature_id, details, is_confirmed, evidence_url) VALUES
-(1, 1,  'BSL interpreter present for pre-show talk and Q&A',                TRUE, NULL),
-(1, 3,  'Hearing loop active throughout performance',                        TRUE, NULL),
-(1, 7,  'Quiet room available on level 2 throughout the evening',           TRUE, NULL),
-(1, 10, 'Relaxed performance format: reduced volume, lights kept low',      TRUE, NULL),
-(1, 6,  'Wheelchair spaces in rows A and B stalls',                         TRUE, NULL),
-(2, 1,  'BSL interpreter on stage right throughout full performance',       TRUE, NULL),
-(2, 13, 'Live captions displayed on screens either side of stage',          TRUE, NULL),
-(2, 3,  'Hearing loop active in auditorium',                                 TRUE, NULL),
-(2, 8,  'Large print programmes available at box office',                   TRUE, NULL),
-(3, 3,  'Hearing loop active throughout performance',                        TRUE, NULL),
-(3, 8,  'Large print programmes available on request',                      TRUE, NULL),
-(3, 6,  'Wheelchair spaces in stalls row A with companion seats',           TRUE, NULL),
-(4, 1,  'BSL interpreter throughout all talks',                              TRUE, NULL),
-(4, 13, 'Live captioning on main screens',                                   TRUE, NULL),
-(4, 7,  'Quiet room available throughout the day',                           TRUE, NULL),
-(4, 4,  'Full step-free access to all talk rooms',                           TRUE, NULL),
-(5, 2,  'Audio description service via radio receivers at box office',      TRUE, NULL),
-(5, 8,  'Large print and Braille programmes available on request',          TRUE, NULL),
-(5, 9,  'Braille programmes available, request at least 48 hours in advance',TRUE,NULL),
-(5, 3,  'Hearing loop active in main auditorium',                            TRUE, NULL),
-(6, 4,  'Full step-free access. Yoga mats and chairs provided',              TRUE, NULL),
-(6, 6,  'Session fully adapted for wheelchair users',                        TRUE, NULL),
-(6, 7,  'Low sensory environment maintained throughout',                     TRUE, NULL),
-(7, 7,  'Dedicated quiet room available throughout session',                 TRUE, NULL),
-(7, 10, 'Relaxed session format throughout',                                 TRUE, NULL),
-(7, 14, 'Low sensory environment: no bright lights or loud music',          TRUE, NULL),
-(7, 1,  'BSL interpreter available for welcome and instructions',           TRUE, NULL),
-(8, 1,  'BSL-interpreted cookery demonstrations at 12pm and 3pm daily',    TRUE, NULL),
-(8, 4,  'Full step-free access across festival site',                        TRUE, NULL),
-(8, 5,  'Accessible toilets throughout festival site',                       TRUE, NULL),
-(8, 7,  'Designated quiet zones away from main stage',                       TRUE, NULL),
-(9, 10, 'Relaxed screening: lights kept low, sound reduced',                 TRUE, NULL),
-(9, 13, 'Subtitles on throughout',                                           TRUE, NULL),
-(9, 7,  'Quiet room available outside screen',                               TRUE, NULL),
-(10, 1, 'BSL interpreter for headline acts',                                 TRUE, NULL),
-(10, 3, 'Hearing loop at main stage and acoustic tent',                      TRUE, NULL),
-(10, 6, 'Accessible viewing platform with companion spaces',                 TRUE, NULL),
-(11, 4, 'Full step-free access throughout sports hall',                      TRUE, NULL),
-(11, 6, 'Session designed for wheelchair users',                             TRUE, NULL),
-(11, 11,'Assistance dog relief area outside main entrance',                  TRUE, NULL),
-(12, 1, 'BSL interpreter on stage throughout',                               TRUE, NULL),
-(12, 13,'Live captioning on screens',                                        TRUE, NULL),
-(12, 3, 'Hearing loop active',                                               TRUE, NULL),
-(12, 7, 'Quiet room available on level 2',                                   TRUE, NULL),
-(12, 10,'Relaxed format for opening set',                                    TRUE, NULL);
+(1,  1,  'BSL interpreter present for pre-show talk and Q&A',                  TRUE, NULL),
+(1,  3,  'Hearing loop active throughout performance',                          TRUE, NULL),
+(1,  7,  'Quiet room available on level 2 throughout the evening',             TRUE, NULL),
+(1,  10, 'Relaxed performance format: reduced volume, lights kept low',        TRUE, NULL),
+(1,  6,  'Wheelchair spaces in rows A and B stalls',                           TRUE, NULL),
+(2,  1,  'BSL interpreter on stage right throughout full performance',         TRUE, NULL),
+(2,  13, 'Live captions displayed on screens either side of stage',            TRUE, NULL),
+(2,  3,  'Hearing loop active in auditorium',                                  TRUE, NULL),
+(2,  8,  'Large print programmes available at box office',                     TRUE, NULL),
+(3,  3,  'Hearing loop active throughout performance',                         TRUE, NULL),
+(3,  8,  'Large print programmes available on request',                        TRUE, NULL),
+(3,  6,  'Wheelchair spaces in stalls row A with companion seats',             TRUE, NULL),
+(4,  1,  'BSL interpreter throughout all talks',                               TRUE, NULL),
+(4,  13, 'Live captioning on main screens',                                    TRUE, NULL),
+(4,  7,  'Quiet room available throughout the day',                            TRUE, NULL),
+(4,  4,  'Full step-free access to all talk rooms',                            TRUE, NULL),
+(5,  2,  'Audio description service via radio receivers at box office',        TRUE, NULL),
+(5,  8,  'Large print and Braille programmes available on request',            TRUE, NULL),
+(5,  9,  'Braille programmes available, request 48 hours in advance',         TRUE, NULL),
+(5,  3,  'Hearing loop active in main auditorium',                             TRUE, NULL),
+(6,  4,  'Full step-free access. Yoga mats and chairs provided',               TRUE, NULL),
+(6,  6,  'Session fully adapted for wheelchair users',                         TRUE, NULL),
+(6,  7,  'Low sensory environment maintained throughout',                      TRUE, NULL),
+(7,  7,  'Dedicated quiet room available throughout session',                  TRUE, NULL),
+(7,  10, 'Relaxed session format throughout',                                  TRUE, NULL),
+(7,  14, 'Low sensory environment: no bright lights or loud music',            TRUE, NULL),
+(7,  1,  'BSL interpreter available for welcome and instructions',             TRUE, NULL),
+(8,  1,  'BSL-interpreted cookery demonstrations at 12pm and 3pm daily',      TRUE, NULL),
+(8,  4,  'Full step-free access across festival site',                         TRUE, NULL),
+(8,  5,  'Accessible toilets throughout festival site',                        TRUE, NULL),
+(8,  7,  'Designated quiet zones away from main stage',                        TRUE, NULL),
+(9,  10, 'Relaxed screening: lights kept low, sound reduced',                  TRUE, NULL),
+(9,  13, 'Subtitles on throughout',                                            TRUE, NULL),
+(9,  7,  'Quiet room available outside screen',                                TRUE, NULL),
+(10, 1,  'BSL interpreter for headline acts',                                  TRUE, NULL),
+(10, 3,  'Hearing loop at main stage and acoustic tent',                       TRUE, NULL),
+(10, 6,  'Accessible viewing platform with companion spaces',                  TRUE, NULL),
+(11, 4,  'Full step-free access throughout sports hall',                       TRUE, NULL),
+(11, 6,  'Session designed for wheelchair users',                              TRUE, NULL),
+(11, 11, 'Assistance dog relief area outside main entrance',                   TRUE, NULL),
+(12, 1,  'BSL interpreter on stage throughout',                                TRUE, NULL),
+(12, 13, 'Live captioning on screens',                                         TRUE, NULL),
+(12, 3,  'Hearing loop active',                                                TRUE, NULL),
+(12, 7,  'Quiet room available on level 2',                                    TRUE, NULL),
+(12, 10, 'Relaxed format for opening set',                                     TRUE, NULL);
+```
 
--- Event images
+---
+
+### Event images
+```sql
 INSERT INTO event_image (event_id, url, alt_text, is_primary) VALUES
-(1,  'https://cdn.accessevents.co.uk/events/1/main.jpg',  'Orchestra performing on stage at Royal Festival Hall',                   TRUE),
-(2,  'https://cdn.accessevents.co.uk/events/2/main.jpg',  'BSL interpreter on stage alongside actors during The Glass Menagerie',  TRUE),
-(3,  'https://cdn.accessevents.co.uk/events/3/main.jpg',  'Full orchestra on stage at Birmingham Symphony Hall',                    TRUE),
-(4,  'https://cdn.accessevents.co.uk/events/4/main.jpg',  'Speaker at podium with BSL interpreter and captioning screens visible', TRUE),
-(5,  'https://cdn.accessevents.co.uk/events/5/main.jpg',  'Cast of Hamilton on stage at Edinburgh Playhouse',                      TRUE),
-(6,  'https://cdn.accessevents.co.uk/events/6/main.jpg',  'Participants in wheelchair yoga session in bright accessible studio',    TRUE),
-(7,  'https://cdn.accessevents.co.uk/events/7/main.jpg',  'Group of adults at craft tables in relaxed community setting',          TRUE),
-(8,  'https://cdn.accessevents.co.uk/events/8/main.jpg',  'Busy accessible food festival with wide pathways and colourful stalls', TRUE),
-(9,  'https://cdn.accessevents.co.uk/events/9/main.jpg',  'Audience watching Hidden Figures in a relaxed cinema setting',          TRUE),
-(10, 'https://cdn.accessevents.co.uk/events/10/main.jpg', 'Folk musicians performing with accessible viewing platform',             TRUE),
-(11, 'https://cdn.accessevents.co.uk/events/11/main.jpg', 'Wheelchair basketball players in action in an indoor sports hall',      TRUE),
-(12, 'https://cdn.accessevents.co.uk/events/12/main.jpg', 'Musician performing on stage at First Direct Arena Leeds',              TRUE);
+(1,  'https://cdn.accessevents.co.uk/events/1/main.jpg',  'Orchestra performing on stage at Royal Festival Hall',                  TRUE),
+(2,  'https://cdn.accessevents.co.uk/events/2/main.jpg',  'BSL interpreter on stage alongside actors during The Glass Menagerie', TRUE),
+(3,  'https://cdn.accessevents.co.uk/events/3/main.jpg',  'Full orchestra on stage at Birmingham Symphony Hall',                   TRUE),
+(4,  'https://cdn.accessevents.co.uk/events/4/main.jpg',  'Speaker at podium with BSL interpreter and captioning screens',        TRUE),
+(5,  'https://cdn.accessevents.co.uk/events/5/main.jpg',  'Cast of Hamilton on stage at Edinburgh Playhouse',                     TRUE),
+(6,  'https://cdn.accessevents.co.uk/events/6/main.jpg',  'Participants in wheelchair yoga session in bright accessible studio',   TRUE),
+(7,  'https://cdn.accessevents.co.uk/events/7/main.jpg',  'Group of adults at craft tables in relaxed community setting',         TRUE),
+(8,  'https://cdn.accessevents.co.uk/events/8/main.jpg',  'Busy accessible food festival with wide pathways',                     TRUE),
+(9,  'https://cdn.accessevents.co.uk/events/9/main.jpg',  'Audience watching Hidden Figures in a relaxed cinema setting',         TRUE),
+(10, 'https://cdn.accessevents.co.uk/events/10/main.jpg', 'Folk musicians performing with accessible viewing platform',            TRUE),
+(11, 'https://cdn.accessevents.co.uk/events/11/main.jpg', 'Wheelchair basketball players in action in an indoor sports hall',     TRUE),
+(12, 'https://cdn.accessevents.co.uk/events/12/main.jpg', 'Musician performing on stage at First Direct Arena Leeds',             TRUE);
+```
 
--- Reviews
+---
+
+### Reviews
+```sql
 INSERT INTO review (user_id, event_id, overall_rating, accessibility_rating, comment, is_verified_attendee) VALUES
-(1,  1,  5, 5, 'Absolutely brilliant relaxed prom. The quiet room was a lifesaver and the BSL interpreter was excellent throughout.',                               TRUE),
-(2,  1,  4, 4, 'Great event overall. Step-free access was seamless from entrance to seat. Would have liked more wheelchair spaces.',                                TRUE),
-(3,  2,  5, 5, 'Audio description was superb. Staff were incredibly helpful and the touch tour beforehand was a wonderful addition.',                               TRUE),
-(1,  2,  5, 5, 'The BSL interpreter was perfectly positioned and very skilled. Captioning on the side screens meant I never missed a word.',                       TRUE),
-(4,  4,  5, 5, 'Best accessible event I have attended. Quiet room was well managed and BSL interpreter was excellent for all sessions.',                           TRUE),
-(5,  4,  4, 4, 'Really well organised. Captioning was clear and the step-free access worked perfectly.',                                                            TRUE),
-(2,  6,  5, 5, 'Perfect yoga session for wheelchair users. The instructor was experienced and the whole environment felt genuinely inclusive.',                     TRUE),
-(7,  6,  4, 5, 'Incredibly welcoming and well adapted. Accessible toilets were clean and nearby. Will definitely return.',                                          TRUE),
-(4,  7,  5, 5, 'The low sensory environment was exactly right. Quiet room was calm and well-staffed.',                                                              TRUE),
-(6,  7,  4, 4, 'A lovely morning. Would benefit from slightly more seating options but the relaxed atmosphere was genuinely calming.',                              TRUE),
-(1,  9,  5, 5, 'Relaxed cinema done right. Subtitles were clear, sound was comfortable and the quiet room outside was a great touch.',                             TRUE),
-(3,  5,  5, 5, 'Touch tour before the show was outstanding. Audio description was clear and unobtrusive.',                                                          TRUE),
-(8,  5,  4, 4, 'Good audio description service. Braille programme was ready on arrival which I really appreciated.',                                                TRUE),
-(5,  10, 4, 4, 'Hearing loop was effective at the main stage. BSL interpreter was present for headline acts.',                                                      TRUE),
-(2,  11, 5, 5, 'Brilliant taster session. The organisers clearly understood the needs of wheelchair users.',                                                         TRUE),
-(1,  12, 5, 5, 'Outstanding accessibility provision. BSL interpreter, captioning, hearing loop and quiet room all working perfectly.',                              TRUE),
-(4,  12, 4, 4, 'Relaxed format for the opening set was really appreciated. Quiet room was well signposted.',                                                        TRUE),
-(6,  9,  3, 3, 'Relaxed screening was good but the quiet room was quite small and got crowded.',                                                                    TRUE),
-(7,  8,  4, 4, 'Accessible food festival was well laid out with wide pathways. BSL demonstrations were a highlight.',                                               TRUE),
-(3,  3,  4, 4, 'Hearing loop worked perfectly throughout. Large print programme was clear and well designed.',                                                      TRUE);
+(1,  1,  5, 5, 'Absolutely brilliant relaxed prom. The quiet room was a lifesaver and the BSL interpreter was excellent throughout.',                TRUE),
+(2,  1,  4, 4, 'Great event overall. Step-free access was seamless from entrance to seat. Would have liked more wheelchair spaces.',                 TRUE),
+(3,  2,  5, 5, 'Audio description was superb. Staff were incredibly helpful and the touch tour beforehand was a wonderful addition.',                TRUE),
+(1,  2,  5, 5, 'The BSL interpreter was perfectly positioned. Captioning on the side screens meant I never missed a word.',                         TRUE),
+(4,  4,  5, 5, 'Best accessible event I have attended. Quiet room was well managed and BSL interpreter was excellent.',                              TRUE),
+(5,  4,  4, 4, 'Really well organised. Captioning was clear and the step-free access worked perfectly.',                                             TRUE),
+(2,  6,  5, 5, 'Perfect yoga session for wheelchair users. The instructor was experienced and the environment felt genuinely inclusive.',            TRUE),
+(7,  6,  4, 5, 'Incredibly welcoming and well adapted. Accessible toilets were clean and nearby.',                                                   TRUE),
+(4,  7,  5, 5, 'The low sensory environment was exactly right. Quiet room was calm and well-staffed.',                                               TRUE),
+(6,  7,  4, 4, 'A lovely morning. Would benefit from slightly more seating options but the relaxed atmosphere was genuinely calming.',               TRUE),
+(1,  9,  5, 5, 'Relaxed cinema done right. Subtitles were clear and the quiet room outside was a great touch.',                                      TRUE),
+(3,  5,  5, 5, 'Touch tour before the show was outstanding. Audio description was clear and unobtrusive.',                                           TRUE),
+(8,  5,  4, 4, 'Good audio description service. Braille programme was ready on arrival which I really appreciated.',                                 TRUE),
+(5,  10, 4, 4, 'Hearing loop was effective at the main stage. BSL interpreter was present for headline acts.',                                       TRUE),
+(2,  11, 5, 5, 'Brilliant taster session. The organisers clearly understood the needs of wheelchair users.',                                          TRUE),
+(1,  12, 5, 5, 'Outstanding accessibility provision. BSL interpreter, captioning, hearing loop and quiet room all working perfectly.',               TRUE),
+(4,  12, 4, 4, 'Relaxed format for the opening set was really appreciated. Quiet room was well signposted.',                                         TRUE),
+(6,  9,  3, 3, 'Relaxed screening was good but the quiet room was quite small and got crowded.',                                                     TRUE),
+(7,  8,  4, 4, 'Accessible food festival was well laid out. BSL demonstrations were a highlight.',                                                    TRUE),
+(3,  3,  4, 4, 'Hearing loop worked perfectly throughout. Large print programme was clear and well designed.',                                        TRUE);
+```
 
--- Review feature ratings
+---
+
+### Review feature ratings
+```sql
 INSERT INTO review_feature_rating (review_id, feature_id, rating, comment) VALUES
 (1,  1,  5, 'Interpreter was highly skilled and well positioned'),
 (1,  7,  5, 'Quiet room was calm, well lit and had comfortable seating'),
@@ -815,8 +948,12 @@ INSERT INTO review_feature_rating (review_id, feature_id, rating, comment) VALUE
 (18, 13, 3, 'Subtitles were clear but quiet room was too small'),
 (19, 1,  4, 'BSL demonstrations were engaging and well positioned'),
 (20, 3,  4, 'Hearing loop worked well throughout the auditorium');
+```
 
--- Saved events
+---
+
+### Saved events
+```sql
 INSERT INTO saved_event (user_id, event_id, saved_at) VALUES
 (1,  1,  '2026-04-01 09:15:00'), (1,  2,  '2026-04-01 09:18:00'), (1,  9,  '2026-04-03 14:22:00'),
 (2,  1,  '2026-04-02 11:00:00'), (2,  6,  '2026-04-02 11:05:00'), (2,  11, '2026-04-05 16:30:00'),
@@ -826,8 +963,12 @@ INSERT INTO saved_event (user_id, event_id, saved_at) VALUES
 (6,  7,  '2026-04-05 10:00:00'), (6,  9,  '2026-04-05 10:05:00'),
 (7,  6,  '2026-04-03 15:45:00'), (7,  8,  '2026-04-06 09:20:00'),
 (8,  5,  '2026-04-02 13:00:00'), (8,  3,  '2026-04-04 18:15:00');
+```
 
--- Recommendations
+---
+
+### Recommendations
+```sql
 INSERT INTO recommendation (user_id, event_id, reason_code, score, was_clicked) VALUES
 (1,  2,  'preference_match',   0.97, TRUE),
 (1,  9,  'preference_match',   0.91, TRUE),
@@ -847,34 +988,46 @@ INSERT INTO recommendation (user_id, event_id, reason_code, score, was_clicked) 
 (7,  11, 'disability_match',   0.90, FALSE),
 (8,  5,  'preference_match',   0.95, TRUE),
 (8,  3,  'popular_accessible', 0.83, TRUE);
+```
 
--- Notifications
+---
+
+### Notifications
+```sql
 INSERT INTO notification (user_id, event_id, type_code, message, is_read) VALUES
-(1,  1,  'reminder',       'Your saved event Relaxed Prom: A Night at the Orchestra is tomorrow at 7pm.',             TRUE),
-(1,  2,  'reminder',       'BSL Interpreted Theatre: The Glass Menagerie is coming up on 18 May.',                    FALSE),
-(2,  1,  'reminder',       'Relaxed Prom is tomorrow. Your wheelchair space is confirmed.',                            TRUE),
-(3,  5,  'reminder',       'Audio Described Performance: Hamilton is in 3 days. Your touch tour is at 6:30pm.',       FALSE),
-(4,  4,  'reminder',       'Inclusive Tech Talks starts tomorrow at 10am at Manchester Central.',                      TRUE),
-(1,  1,  'review_prompt',  'You attended Relaxed Prom last night. How was the accessibility? Leave a review.',        TRUE),
-(2,  6,  'review_prompt',  'Hope you enjoyed Mindfulness and Movement. Share your accessibility experience.',         TRUE),
-(3,  2,  'recommendation', 'New recommendation: Audio Described Performance: Hamilton matches your preferences.',      FALSE),
-(4,  7,  'recommendation', 'Community Craft Morning looks perfect for you based on your accessibility preferences.',   TRUE),
-(5,  12, 'recommendation', 'Inclusive Music Showcase in Leeds matches your hearing accessibility preferences.',        FALSE),
-(6,  4,  'update',         'Inclusive Tech Talks has added an additional quiet room on level 3.',                      TRUE),
-(7,  8,  'update',         'Accessible Food Festival has extended BSL interpreted sessions.',                          FALSE),
-(1,  9,  'reminder',       'Relaxed Cinema: Hidden Figures is this Saturday at 2pm.',                                 FALSE),
-(2,  11, 'reminder',       'Wheelchair Basketball Taster Session is next Saturday at 1pm.',                           FALSE);
+(1,  1,  'reminder',       'Your saved event Relaxed Prom: A Night at the Orchestra is tomorrow at 7pm.',            TRUE),
+(1,  2,  'reminder',       'BSL Interpreted Theatre: The Glass Menagerie is coming up on 18 May.',                   FALSE),
+(2,  1,  'reminder',       'Relaxed Prom is tomorrow. Your wheelchair space is confirmed.',                           TRUE),
+(3,  5,  'reminder',       'Audio Described Performance: Hamilton is in 3 days. Your touch tour is at 6:30pm.',      FALSE),
+(4,  4,  'reminder',       'Inclusive Tech Talks starts tomorrow at 10am at Manchester Central.',                     TRUE),
+(1,  1,  'review_prompt',  'You attended Relaxed Prom last night. How was the accessibility? Leave a review.',       TRUE),
+(2,  6,  'review_prompt',  'Hope you enjoyed Mindfulness and Movement. Share your accessibility experience.',        TRUE),
+(3,  2,  'recommendation', 'New recommendation: Audio Described Performance: Hamilton matches your preferences.',     FALSE),
+(4,  7,  'recommendation', 'Community Craft Morning looks perfect for you based on your accessibility preferences.',  TRUE),
+(5,  12, 'recommendation', 'Inclusive Music Showcase in Leeds matches your hearing accessibility preferences.',       FALSE),
+(6,  4,  'update',         'Inclusive Tech Talks has added an additional quiet room on level 3.',                     TRUE),
+(7,  8,  'update',         'Accessible Food Festival has extended BSL interpreted sessions.',                         FALSE),
+(1,  9,  'reminder',       'Relaxed Cinema: Hidden Figures is this Saturday at 2pm.',                                FALSE),
+(2,  11, 'reminder',       'Wheelchair Basketball Taster Session is next Saturday at 1pm.',                          FALSE);
+```
 
--- Accessibility reports
+---
+
+### Accessibility reports
+```sql
 INSERT INTO accessibility_report (user_id, event_id, feature_id, issue_type, description, status_code) VALUES
-(6, 9,  7,  'poor_quality',      'The quiet room listed was very small and became overcrowded.',                                      'resolved'),
-(2, 3,  6,  'inaccurate_feature','The listing stated multiple wheelchair spaces but only two were available and one was obstructed.', 'under_review'),
-(4, 7,  14, 'missing_feature',   'The event was listed as low sensory but music was playing in the foyer at normal volume.',         'open'),
-(7, 8,  12, 'venue_mismatch',    'Accessible parking listed as available but spaces were blocked by festival infrastructure.',        'resolved'),
-(8, 5,  9,  'poor_quality',      'Braille programme contained errors in the cast list section.',                                      'open'),
-(1, 12, 7,  'missing_feature',   'Quiet room listed on level 2 but signage was absent and staff were unaware of its location.',      'under_review');
+(6, 9,  7,  'poor_quality',      'The quiet room listed was very small and became overcrowded.',                                     'resolved'),
+(2, 3,  6,  'inaccurate_feature','The listing stated multiple wheelchair spaces but only two were available.',                       'under_review'),
+(4, 7,  14, 'missing_feature',   'The event was listed as low sensory but music was playing in the foyer at normal volume.',        'open'),
+(7, 8,  12, 'venue_mismatch',    'Accessible parking listed as available but spaces were blocked by festival infrastructure.',       'resolved'),
+(8, 5,  9,  'poor_quality',      'Braille programme contained errors in the cast list section.',                                     'open'),
+(1, 12, 7,  'missing_feature',   'Quiet room listed on level 2 but signage was absent and staff were unaware of its location.',     'under_review');
+```
 
--- Search logs
+---
+
+### Search logs
+```sql
 INSERT INTO search_log (user_id, query_text, results_count) VALUES
 (1,    'BSL interpreted theatre London',      8),
 (1,    'relaxed performances near me',        5),
@@ -890,8 +1043,12 @@ INSERT INTO search_log (user_id, query_text, results_count) VALUES
 (NULL, 'free accessible events London',       9),
 (1,    'relaxed cinema subtitles',            6),
 (3,    'touch tour theatre UK',               4);
+```
 
--- Search filters
+---
+
+### Search filters
+```sql
 INSERT INTO search_filter (log_id, filter_key, filter_value) VALUES
 (1,  'feature',  'BSL Interpretation'),
 (1,  'category', 'Arts & Theatre'),
@@ -925,3 +1082,72 @@ INSERT INTO search_filter (log_id, filter_key, filter_value) VALUES
 (13, 'feature',  'Relaxed Performance'),
 (14, 'feature',  'Audio Description'),
 (14, 'category', 'Arts & Theatre');
+```
+
+---
+
+## Verification Queries
+
+Run these after setup to confirm everything is working correctly.
+```sql
+-- Check all tables have data
+SELECT 'disability_type'   AS tbl, COUNT(*) FROM disability_type
+UNION ALL SELECT 'event_category',          COUNT(*) FROM event_category
+UNION ALL SELECT 'accessibility_feature',   COUNT(*) FROM accessibility_feature
+UNION ALL SELECT 'app_user',                COUNT(*) FROM app_user
+UNION ALL SELECT 'venue',                   COUNT(*) FROM venue
+UNION ALL SELECT 'event',                   COUNT(*) FROM event
+UNION ALL SELECT 'event_accessibility',     COUNT(*) FROM event_accessibility
+UNION ALL SELECT 'review',                  COUNT(*) FROM review
+UNION ALL SELECT 'user_preference',         COUNT(*) FROM user_preference
+UNION ALL SELECT 'user_disability',         COUNT(*) FROM user_disability
+ORDER BY tbl;
+
+-- Check events with their venue and accessibility feature count
+SELECT
+  e.title,
+  v.name        AS venue,
+  a.city,
+  COUNT(DISTINCT ea.feature_id)        AS accessibility_features,
+  ROUND(AVG(r.accessibility_rating),1) AS avg_accessibility_rating,
+  COUNT(DISTINCT r.review_id)          AS total_reviews
+FROM event e
+JOIN venue v              ON e.venue_id    = v.venue_id
+JOIN address a            ON v.address_id  = a.address_id
+LEFT JOIN event_accessibility ea ON e.event_id = ea.event_id
+LEFT JOIN review r               ON e.event_id = r.event_id
+GROUP BY e.title, v.name, a.city
+ORDER BY avg_accessibility_rating DESC NULLS LAST;
+```
+
+---
+
+## Table Summary
+
+| Table | Rows | Purpose |
+|-------|------|---------|
+| `disability_type` | 8 | Lookup — disability categories |
+| `event_category` | 8 | Lookup — event types |
+| `notification_type` | 6 | Lookup — notification categories |
+| `recommendation_type` | 5 | Lookup — recommendation reasons |
+| `report_status` | 5 | Lookup — report workflow statuses |
+| `issue_type` | 5 | Lookup — accessibility issue types |
+| `address` | 8 | UK venue addresses with coordinates |
+| `accessibility_feature` | 15 | Standardised accessibility feature catalogue |
+| `app_user` | 14 | Users — attendees, organisers and admins |
+| `venue` | 8 | UK event venues |
+| `event` | 12 | Upcoming accessible events |
+| `user_disability` | 20 | User declared disability types |
+| `user_preference` | 52 | User accessibility feature preferences |
+| `feature_disability_relevance` | 26 | Feature relevance scores per disability |
+| `venue_accessibility` | 23 | Permanent venue accessibility features |
+| `event_accessibility` | 45 | Per-event accessibility provision |
+| `event_image` | 12 | Event images with alt text |
+| `review` | 20 | User accessibility reviews |
+| `review_feature_rating` | 26 | Per-feature ratings within reviews |
+| `saved_event` | 20 | User saved event wishlist |
+| `recommendation` | 18 | Personalised event recommendations |
+| `notification` | 14 | User notifications |
+| `accessibility_report` | 6 | User-submitted accessibility issue reports |
+| `search_log` | 14 | Search query log |
+| `search_filter` | 31 | Individual filter values per search |
