@@ -30,6 +30,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 function GapChart({ data }: { data: any[] }) {
+  const sortedByGap = [...data].sort((a, b) => b.gap - a.gap)
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -39,12 +41,19 @@ function GapChart({ data }: { data: any[] }) {
           User demand vs event supply by feature
         </h3>
         <p className="text-gray-400 text-xs mb-4">
-          Orange = users who want this feature. Indigo = events that provide it.
+          Amber = users who want this feature. Indigo = events that provide it.
         </p>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 100 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="feature" tick={{ fontSize: 10, fill: '#64748b' }} angle={-40} textAnchor="end" interval={0} height={110} />
+            <XAxis
+              dataKey="feature"
+              tick={{ fontSize: 10, fill: '#64748b' }}
+              angle={-40}
+              textAnchor="end"
+              interval={0}
+              height={110}
+            />
             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
@@ -63,14 +72,33 @@ function GapChart({ data }: { data: any[] }) {
           How many more users want each feature than events currently provide it.
           Larger bars = bigger unmet need.
         </p>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 100 }} layout="vertical">
+        <ResponsiveContainer width="100%" height={420}>
+          <BarChart
+            data={sortedByGap}
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+            layout="vertical"
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-            <YAxis dataKey="feature" type="category" tick={{ fontSize: 10, fill: '#475569' }} width={130} />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              allowDecimals={false}
+            />
+            <YAxis
+              dataKey="feature"
+              type="category"
+              tick={{ fontSize: 10, fill: '#475569' }}
+              width={160}
+              interval={0}
+            />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="gap" name="Unmet demand" radius={[0, 6, 6, 0]}>
-              {data.map((_: any, i: number) => (
+            <Bar
+              dataKey="gap"
+              name="Unmet demand"
+              radius={[0, 6, 6, 0]}
+              isAnimationActive={false}
+            >
+              {sortedByGap.map((_: any, i: number) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}
             </Bar>
@@ -83,9 +111,9 @@ function GapChart({ data }: { data: any[] }) {
 
 function UnderserviceChart({ data }: { data: any[] }) {
   const radarData = data.slice(0, 8).map(d => ({
-    disability:    d.disability.split(' ')[0],
+    disability:     d.disability.split(' ')[0],
     matchingEvents: d.matchingEvents,
-    users:         d.users,
+    users:          d.users,
   }))
 
   return (
@@ -97,15 +125,31 @@ function UnderserviceChart({ data }: { data: any[] }) {
           Events available per user by disability type
         </h3>
         <p className="text-gray-400 text-xs mb-4">
-          Lower bars indicate communities with fewer suitable events relative to their population on the platform.
+          Lower bars indicate communities with fewer suitable events relative to
+          their population on the platform.
         </p>
         <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} layout="vertical">
+          <BarChart
+            data={data}
+            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+            layout="vertical"
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis dataKey="disability" type="category" tick={{ fontSize: 10, fill: '#475569' }} width={140} />
+            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
+            <YAxis
+              dataKey="disability"
+              type="category"
+              tick={{ fontSize: 10, fill: '#475569' }}
+              width={140}
+              interval={0}
+            />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="matchingEvents" name="Matching events" radius={[0, 6, 6, 0]}>
+            <Bar
+              dataKey="matchingEvents"
+              name="Matching events"
+              radius={[0, 6, 6, 0]}
+              isAnimationActive={false}
+            >
               {data.map((d: any, i: number) => (
                 <Cell key={i} fill={d.underserved ? CORAL : GREEN} />
               ))}
@@ -130,16 +174,16 @@ function UnderserviceChart({ data }: { data: any[] }) {
           Community coverage radar
         </h3>
         <p className="text-gray-400 text-xs mb-4">
-          Comparing registered users against matching event availability per disability group.
-          Ideal coverage would show both values balanced.
+          Comparing registered users against matching event availability per
+          disability group. Ideal coverage would show both values balanced.
         </p>
         <ResponsiveContainer width="100%" height={320}>
           <RadarChart data={radarData}>
             <PolarGrid stroke="#e2e8f0" />
             <PolarAngleAxis dataKey="disability" tick={{ fontSize: 11, fill: '#64748b' }} />
             <PolarRadiusAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
-            <Radar name="Matching events" dataKey="matchingEvents" stroke={INDIGO} fill={INDIGO} fillOpacity={0.2} strokeWidth={2} />
-            <Radar name="Registered users" dataKey="users" stroke={AMBER} fill={AMBER} fillOpacity={0.1} strokeWidth={2} />
+            <Radar name="Matching events"  dataKey="matchingEvents" stroke={INDIGO} fill={INDIGO} fillOpacity={0.2} strokeWidth={2} />
+            <Radar name="Registered users" dataKey="users"          stroke={AMBER}  fill={AMBER}  fillOpacity={0.1} strokeWidth={2} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
             <Tooltip content={<CustomTooltip />} />
           </RadarChart>
@@ -162,7 +206,8 @@ function OverviewCharts({ data }: { data: any }) {
             Accessible events and avg features by city
           </h3>
           <p className="text-gray-400 text-xs mb-4">
-            Comparing event volume against average number of accessibility features per event across UK cities.
+            Comparing event volume against average number of accessibility
+            features per event across UK cities.
           </p>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={cityData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -172,7 +217,7 @@ function OverviewCharts({ data }: { data: any }) {
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#64748b' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Bar yAxisId="left"  dataKey="events"      name="Events"            fill={INDIGO} radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="left"  dataKey="events"      name="Events"             fill={INDIGO} radius={[4, 4, 0, 0]} />
               <Bar yAxisId="right" dataKey="avgFeatures" name="Avg features/event" fill={TEAL}   radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -184,12 +229,20 @@ function OverviewCharts({ data }: { data: any }) {
             Free vs paid events by category
           </h3>
           <p className="text-gray-400 text-xs mb-4">
-            Understanding financial accessibility barriers — which event types are more likely to be free.
+            Understanding financial accessibility barriers — which event types
+            are more likely to be free.
           </p>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={categoryData} margin={{ top: 5, right: 10, left: 0, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#64748b' }} angle={-35} textAnchor="end" interval={0} height={100} />
+              <XAxis
+                dataKey="category"
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                angle={-35}
+                textAnchor="end"
+                interval={0}
+                height={100}
+              />
               <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
@@ -206,13 +259,21 @@ function OverviewCharts({ data }: { data: any }) {
           Accessibility features — provision vs user demand
         </h3>
         <p className="text-gray-400 text-xs mb-4">
-          Number of events providing each feature (indigo) versus number of users who have listed it as a preference (amber).
-          Gaps between the two bars highlight unmet need.
+          Number of events providing each feature (indigo) versus number of
+          users who have listed it as a preference (amber). Gaps between the
+          two bars highlight unmet need.
         </p>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={featureData} margin={{ top: 5, right: 20, left: 0, bottom: 100 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-35} textAnchor="end" interval={0} height={110} />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 10, fill: '#64748b' }}
+              angle={-35}
+              textAnchor="end"
+              interval={0}
+              height={110}
+            />
             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />

@@ -68,7 +68,7 @@ export function CategoryRatingsChart({ data }: { data: any[] }) {
       <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 80 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
         <XAxis dataKey="fullCategory" tick={{ fontSize: 10, fill: '#64748b' }} angle={-35} textAnchor="end" interval={0} height={100} />
-        <YAxis domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
+        <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
         <Bar dataKey="accessibility" name="Accessibility" fill={INDIGO} radius={[4, 4, 0, 0]} />
@@ -100,8 +100,18 @@ export function ReviewTrendChart({ data }: { data: any[] }) {
       <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
-        <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-        <YAxis yAxisId="right" orientation="right" domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} />
+        <YAxis
+          yAxisId="left"
+          tick={{ fontSize: 11, fill: '#64748b' }}
+          allowDecimals={false}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          domain={[1, 5]}
+          ticks={[1, 2, 3, 4, 5]}
+          tick={{ fontSize: 11, fill: '#64748b' }}
+        />
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: '12px' }} />
         <Line yAxisId="left"  type="monotone" dataKey="reviews"    name="Reviews"           stroke={INDIGO} strokeWidth={2} dot={{ r: 4, fill: INDIGO }} activeDot={{ r: 6 }} />
@@ -128,7 +138,8 @@ export function ScatterPlotChart({ data }: { data: any[] }) {
         <YAxis
           dataKey="rating"
           name="Rating"
-          domain={[0, 5]}
+          domain={[1, 5]}
+          ticks={[1, 2, 3, 4, 5]}
           tick={{ fontSize: 11, fill: '#64748b' }}
           label={{ value: 'Avg rating', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#94a3b8' }}
         />
