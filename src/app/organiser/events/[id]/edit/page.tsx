@@ -115,7 +115,6 @@ export default function EditEventPage() {
       return
     }
 
-    // Replace accessibility features
     await supabase.from('event_accessibility').delete().eq('event_id', id)
 
     if (selectedFeatures.length > 0) {

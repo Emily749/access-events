@@ -73,7 +73,6 @@ export default function NewEventPage() {
 
     setLoading(true)
 
-    // Insert event
     const { data: eventData, error: eventError } = await supabase
       .from('event')
       .insert({
@@ -97,7 +96,6 @@ export default function NewEventPage() {
       return
     }
 
-    // Insert accessibility features
     if (selectedFeatures.length > 0) {
       await supabase.from('event_accessibility').insert(
         selectedFeatures.map(feature_id => ({

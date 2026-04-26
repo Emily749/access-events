@@ -59,7 +59,6 @@ export default function NewVenuePage() {
 
     setLoading(true)
 
-    // Insert address first
     const { data: addressData, error: addressError } = await supabase
       .from('address')
       .insert({
@@ -79,7 +78,6 @@ export default function NewVenuePage() {
       return
     }
 
-    // Insert venue
     const { data: venueData, error: venueError } = await supabase
       .from('venue')
       .insert({
@@ -98,7 +96,6 @@ export default function NewVenuePage() {
       return
     }
 
-    // Insert venue accessibility features
     if (selectedFeatures.length > 0) {
       await supabase.from('venue_accessibility').insert(
         selectedFeatures.map(feature_id => ({

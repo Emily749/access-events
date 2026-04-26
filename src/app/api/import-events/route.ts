@@ -242,8 +242,6 @@ function mapCategory(tmCategory: string): string {
   return map[tmCategory] || 'Community & Social'
 }
 
-// Normalise a show title by stripping dates, times, suffixes
-// so "Matilda - 18 Mar" and "Matilda - 19 Mar" both become "Matilda"
 function normaliseTitle(title: string): string {
   return title
     .replace(/[-–—|:]\s*(mon|tue|wed|thu|fri|sat|sun).*/gi, '')
@@ -262,7 +260,6 @@ async function getOrCreateVenue(
   latitude: number | null,
   longitude: number | null
 ): Promise<number> {
-  // Check if venue already exists by name
   const { data: existing } = await supabase
     .from('venue')
     .select('venue_id')
@@ -275,7 +272,6 @@ async function getOrCreateVenue(
     return existing.venue_id
   }
 
-  // Create address
   const { data: addressData, error: addressError } = await supabase
     .from('address')
     .insert({
@@ -291,7 +287,6 @@ async function getOrCreateVenue(
 
   if (addressError || !addressData) throw new Error('Failed to create address')
 
-  // Create venue
   const { data: venueData, error: venueError } = await supabase
     .from('venue')
     .insert({
@@ -341,7 +336,6 @@ async function saveEvent(
 
   const title = normaliseTitle(tm.name || 'Untitled Event')
 
-  // Use the selected date from the dropdown
   const startDate = selectedDate
   const startMs   = new Date(startDate).getTime()
   const endDate   = new Date(startMs + 3 * 60 * 60 * 1000).toISOString()
@@ -391,7 +385,6 @@ async function saveEvent(
   }
 }
 
-// Group Ticketmaster events by normalised show name + venue
 function groupEventsByShow(tmEvents: any[]): Record<string, any> {
   const groups: Record<string, any> = {}
 
@@ -457,7 +450,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── CONFIRM MODE ─────────────────────────────────────────────
     if (mode === 'confirm' && approved) {
       const results = []
       const errors  = []
@@ -486,7 +478,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── PREVIEW MODE ─────────────────────────────────────────────
     if (!query) {
       return NextResponse.json(
         { error: 'query is required for preview mode' },
@@ -504,7 +495,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Group by show name + venue
     const groups = groupEventsByShow(tmEvents)
 
     const previews = Object.values(groups).map((group: any) => {
@@ -516,7 +506,6 @@ export async function POST(req: NextRequest) {
       const title       = group.normTitle
       const result      = extractAccessibilityFeatures(title, description, venueName, features)
 
-      // Sort dates ascending
       const sortedDates = group.dates.sort(
         (a: any, b: any) =>
           new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
@@ -534,7 +523,6 @@ export async function POST(req: NextRequest) {
         featuresExtracted: result.features,
         aiConfidence:      result.confidence,
         aiSummary:         result.summary,
-        // Store all raw events for this group so user can pick date
         rawEvents:         sortedDates,
       }
     })

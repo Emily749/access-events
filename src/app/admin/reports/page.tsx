@@ -181,7 +181,6 @@ export default function AdminPage() {
           </div>
         ) : tab === 'reports' ? (
 
-          // ── Reports tab ──────────────────────────────────────────
           <div role="tabpanel" aria-label="Accessibility reports">
 
             <div
@@ -303,7 +302,6 @@ export default function AdminPage() {
 
         ) : (
 
-          // ── Search insights tab ───────────────────────────────────
           <div role="tabpanel" aria-label="Search insights">
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">

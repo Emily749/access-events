@@ -59,7 +59,6 @@ export default function ProfilePage() {
     if (!appUser) return
     setSaving(true)
 
-    // Save preferences
     await supabase
       .from('user_preference')
       .delete()
@@ -75,7 +74,6 @@ export default function ProfilePage() {
       )
     }
 
-    // Save disabilities
     await supabase
       .from('user_disability')
       .delete()
@@ -96,7 +94,6 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  // Group features by category
   const featuresByCategory = features.reduce((acc: any, f: any) => {
     if (!acc[f.category]) acc[f.category] = []
     acc[f.category].push(f)

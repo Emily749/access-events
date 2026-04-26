@@ -75,7 +75,6 @@ export default function InsightsPage() {
     })
   }
 
-  // Query 1 — Accessibility gap analysis
   async function loadGapAnalysis() {
     const { data: features } = await supabase
       .from('accessibility_feature')
@@ -112,7 +111,6 @@ export default function InsightsPage() {
     setGapData(result)
   }
 
-  // Query 2 — Event scorecard
   async function loadScorecard() {
     const { data } = await supabase
       .from('event')
@@ -157,7 +155,6 @@ export default function InsightsPage() {
     setScorecardData(result)
   }
 
-  // Query 3 — Disability underservice
   async function loadUnderservice() {
     const { data: disabilities } = await supabase
       .from('disability_type')

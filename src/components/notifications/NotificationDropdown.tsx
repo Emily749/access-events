@@ -54,7 +54,6 @@ export default function NotificationDropdown() {
     if (appUser) fetchNotifications()
   }, [appUser])
 
-  // Close on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -65,7 +64,6 @@ export default function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Close on Escape key
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
